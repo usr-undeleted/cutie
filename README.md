@@ -19,7 +19,7 @@ Undeleted's life long goal to write their own core utils, following their own de
 - If the shell can do it, don't bother.
 
 ## Current implementations:
-- scan directories (scan); replace both ls and find, use --recursive|-r for find's functionality, otherwise, ls by default
+- scan directories (scan); replace both ls and find, use --recursive|-r for find's functionality, otherwise, ls by default (v1.6.3)
 
 ## Planned:
 - print working dir (pwd); would be able to take in args to print the real path of selected stuff
