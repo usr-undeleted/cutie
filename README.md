@@ -19,10 +19,10 @@ Undeleted's life long goal to write their own core utils, following their own de
 - If the shell can do it, don't bother.
 
 ## Current implementations:
-- scan directories (scan); replace both ls and find, use --recursive|-r for find's functionality, otherwise, ls by default (v1.6.3)
+- scan directories (scan); replace both ls and find, use --recursive|-r for find's functionality, otherwise, ls by default
+- print dir path (printpath); replace both pwd and realpath
 
 ## Planned:
-- print working dir (pwd); would be able to take in args to print the real path of selected stuff
 - printf wrapper (print)
 - query search (search)
 - file reading (show)
@@ -34,7 +34,7 @@ Undeleted's life long goal to write their own core utils, following their own de
 ### (temp) compiling:
 - ALWAYS use clang; testing is done exclusively with clang
 ```
-clang -I src/cutie-common.h -o bin/<name of bin> src/<name of bin>
+clang -I src/cutie-common.h -o bin/<name of bin> src/<name of bin source>.c
 ```
 
 ## Code guidelines
@@ -45,3 +45,6 @@ clang -I src/cutie-common.h -o bin/<name of bin> src/<name of bin>
 - Reuse utilities as much as possible; avoid adding new headers
 - If a function is used in more than one bin, put it in a commom lib (src/cutiecommon.h)
 - Vibe coding WILL be rejected. The reviewing WILL be done by humans ONLY. Using AI for coding assitance is acceptable, as long as it respects the rules set.
+- Errors should follow this standard:
+  - 1: Code issue, like failed malloc, etc.
+  - 2+: User issue, like permissions, non-existent file, etc.

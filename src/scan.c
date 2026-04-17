@@ -80,10 +80,10 @@ void printDir(DIR *dirStream, char *currentDir) {
         }
 
         if (entries[i].type != DT_DIR) { // if its a dir
-            char display_name[256];
-            snprintf(display_name, sizeof(display_name), "%s/", entries[i].name);
+            char displayName[256];
+            snprintf(displayName, sizeof(displayName), "%s/", entries[i].name);
 
-            printf("\033[1m\033[34m%-*s", (int)largestWordSize + 2, display_name);
+            printf("\033[1m\033[34m%-*s", (int)largestWordSize + 2, displayName);
         } else { // other file type
             printf("\033[1m\033[34m%s/%-*s", entries[i].name, (int)(largestWordSize - strlen(entries[i].name) + 1), "");
         }
