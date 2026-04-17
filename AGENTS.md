@@ -15,6 +15,12 @@ README.md contains short plans and more explanation on the project.
 - Functions should be reused as much as possible.
 - Binaries need to be instantly obvious on their purpose.
 
+## Directories and files
+- bin/ created only by to be added build script.
+- build.sh will compile and install binaries with high interactivity.
+- src/* contains code files and a to be added common header.
+- README.md contains basic project info and objectives.
+
 ## AI agent behaviour rules
 - NEVER git push. The user will always do it themselves.
 - Always fix a dirty repo if the changes were done by you alone.
