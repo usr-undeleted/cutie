@@ -4,7 +4,7 @@
 #include <ctype.h>
 
 // tolower in strings
-char *strToLower(char *string) {
+void strToLower(char *string) {
     for (int i = 0; i < strlen(string); i++) {
         string[i] = tolower(string[i]);
     }
@@ -59,15 +59,4 @@ int *labelFlags(int argc, char *argv[]) {
     } else {
         return NULL;
     }
-}
-
-void helpMenu() {
-    printf("scan command basic usage:\n"
-        "   scan <flags> <dirs>\n"
-        "scan will search trough all directories you specify.\n"
-        "flags:\n"
-        "   -h or --help: show this menu.\n\n"
-        "scan is part of the cutie project hosted under https://github.com/usr-undeleted/cutie licensed under the GPLv3 license.\n"
-    );
-    exit(0);
 }

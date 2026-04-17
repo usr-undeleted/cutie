@@ -4,8 +4,20 @@
 #include <stdlib.h>
 #include <dirent.h>
 #include <string.h>
+#include <errno.h>
 #include <unistd.h>
 #include "cutie-common.h"
+
+void helpMenu() {
+    printf("scan command basic usage:\n"
+        "   scan <flags> <dirs>\n"
+        "scan will search trough all directories you specify.\n"
+        "flags:\n"
+        "   -h or --help: show this menu.\n\n"
+        "scan is part of the cutie project hosted under https://github.com/usr-undeleted/cutie licensed under the GPLv3 license.\n"
+    );
+    exit(0);
+}
 
 // will contain a whole directory
 struct entry {
@@ -21,10 +33,11 @@ int cmpEntries(const void *a, const void *b) {
 // decide when to print dir name; if only one dir searched, dont
 int singleDir = 0;
 
-void printDir(DIR *dirStream, struct dirent *currentFile, char *currentDir) {
+void printDir(DIR *dirStream, char *currentDir) {
     size_t dirFileCap = 64;
     size_t dirFileCount = 0;
     size_t largestWordSize = 0;
+    struct dirent *currentFile;
 
     struct entry *entries = malloc(dirFileCap * sizeof(*entries));
 
@@ -71,7 +84,7 @@ void printDir(DIR *dirStream, struct dirent *currentFile, char *currentDir) {
     }
 
     // pretty it up
-    printf("\n");
+    printf("\n\n");
 
     // never forget!
     free(entries);
@@ -81,7 +94,10 @@ void printDir(DIR *dirStream, struct dirent *currentFile, char *currentDir) {
 int main (int argc, char *argv[]) {
     char dir[PATH_MAX];
     DIR *dirStream;
-    struct dirent *currentFile;
+
+    if (argc < 3) {
+        singleDir = 1;
+    }
 
     if (argc == 1) { // get cwd
         dirStream = opendir(".");
@@ -93,24 +109,27 @@ int main (int argc, char *argv[]) {
         }
 
     } else { // get dir user wants
-        dirStream = opendir(argv[1]);
-        strcpy(dir, argv[1]);
-    }
+        for (int i = argc - 1; i > 0; i--) { // print dirs user wants on reverse order
+            if (argv[i][0] != '-') {
+                dirStream = opendir(argv[i]);
+                strcpy(dir, argv[i]);
+                if (dirStream == NULL && errno == ENOTDIR) {
+                    if (singleDir) {
+                        printf("'%s' is not a directory\n", argv[i]);
+                    }
+                    continue;
+                } else if (dirStream == NULL) {
+                    printf("Directory %s couldn't be opened: %s\n\n", argv[i], strerror(errno));
+                    if (singleDir) {
+                        return 2;
+                    }
+                    continue;
+                }
 
-    if (argc < 3) {
-        singleDir = 1;
-    }
-
-    if (dirStream == NULL) {
-        perror("Directory couldn't be opened");
-        return 2;
-    }
-
-    printDir(dirStream, currentFile, dir);
-
-    if (closedir(dirStream) == -1) {
-        perror("Couldn't close directory");
-        return 3;
+                printDir(dirStream, dir);
+                closedir(dirStream);
+            }
+        }
     }
 
     return 0;
