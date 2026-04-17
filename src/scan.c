@@ -35,21 +35,32 @@ void printDir(DIR *dirStream, struct dirent *currentFile) {
             entries = realloc(entries, dirFileCap * sizeof(*entries));
         }
 
-        //if (dirFileCount % 6 == 0) {
-        //    printf("\n");
-        //}
-
         entries[dirFileCount].name = currentFile->d_name;
         entries[dirFileCount].type = currentFile->d_type;
 
         dirFileCount++;
     }
 
+    // sort alphabeticallly
     qsort(entries, dirFileCount, sizeof(struct entry), cmpEntries);
 
+    // print
     for (int i = 0; i < dirFileCount; i++) {
-        printf("%-*s\033[0m", (int)largestWordSize + 1, entries[i].name);
+
+        // ignore dotfiles
+        if (entries[i].name[0] == '.') {
+            continue;
+        }
+
+        if (entries[i].type != DT_DIR) { // if its a dir
+            printf("%-*s\033[0m", (int)largestWordSize + 1, entries[i].name);
+        } else { // other file type
+            printf("\033[1m\033[34m%-*s\033[0m", (int)largestWordSize + 1, entries[i].name);
+        }
     }
+
+    // pretty it up
+    printf("\n");
 }
 
 // call funcs to do work, handle errors
