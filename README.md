@@ -23,6 +23,9 @@ Undeleted's life long goal to write their own core utils, following their own de
 
 ### (temp) compiling:
 - ALWAYS use clang; testing is done exclusively with clang
+```
+clang -I src/cutie-common.h -o bin/<name of bin> src/<name of bin>
+```
 
 ## Code guidelines
 - Small commenting, only when needed, as in:
@@ -32,4 +35,3 @@ Undeleted's life long goal to write their own core utils, following their own de
 - Reuse utilities as much as possible; avoid adding new headers
 - If a function is used in more than one bin, put it in a commom lib (src/cutiecommon.h)
 - Vibe coding WILL be rejected. The reviewing WILL be done by humans ONLY. Using AI for coding assitance is acceptable, as long as it respects the rules set.
-
