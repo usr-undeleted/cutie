@@ -87,7 +87,7 @@ void printDir(DIR *dirStream, char *currentDir) {
     }
 
     // pretty it up
-    printf("\n\n");
+    printf("\n");
 
     // never forget!
     free(entries);
@@ -179,6 +179,7 @@ int main (int argc, char *argv[]) {
                 onlyFiles = 0;
 
                 printDir(dirStream, dir);
+                printf("\n");
                 closedir(dirStream);
             }
         }
