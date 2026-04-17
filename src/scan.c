@@ -16,7 +16,8 @@ void helpMenu() {
         "   scan <flags> <dirs>\n"
         "scan will search trough all directories you specify.\n"
         "flags:\n"
-        "   -h or --help: show this menu.\n\n"
+        "   -h or --help: show this menu.\n"
+        "   -a or --all: show all files, as, by default, scan hides dotfiles.\n\n"
         "scan is part of the cutie project hosted under https://github.com/usr-undeleted/cutie licensed under the GPLv3 license.\n"
     );
     exit(0);
@@ -35,6 +36,8 @@ int cmpEntries(const void *a, const void *b) {
 
 // decide when to print dir name; if only one dir searched, dont
 int singleDir = 0;
+// show dotfiles or not
+int dotFiles = 0;
 
 void printDir(DIR *dirStream, char *currentDir) {
     size_t dirFileCap = 64;
@@ -75,7 +78,7 @@ void printDir(DIR *dirStream, char *currentDir) {
     for (int i = 0; i < dirFileCount; i++) {
 
         // ignore dotfiles
-        if (entries[i].name[0] == '.') {
+        if (entries[i].name[0] == '.' && !dotFiles) {
             continue;
         }
 
@@ -98,33 +101,49 @@ int main (int argc, char *argv[]) {
     char dir[PATH_MAX];
     DIR *dirStream;
 
+    // exclude flags from total arg count
+    int totalFlags = 0;
+
     // manage flags
     char charFlags[] = {
-        'h'
+        'h',
+        'a'
     };
     char *stringFlags[] = {
-        "--help"
+        "--help",
+        "--all"
     };
     int charLen = sizeof(charFlags) / sizeof(charFlags[0]);
     int stringLen = sizeof(stringFlags) / sizeof(stringFlags[0]);
 
     int *flags = labelFlags(argc, argv, charFlags, charLen, stringFlags, stringLen);
     if (flags != NULL) {
-        for (int i = 0; i < argc; i++) {
-            if (flags[i] == 0) {
+        for (int i = 0; i < argc; i++) { // loops trough all args
+            // count flags
+            if (argv[i][0] == '-') {
+                totalFlags++;
+            }
+
+            // flags
+            if (flags[i] == 0) { // help
                 helpMenu();
             }
+            if (flags[i] == 1) { // show dotfiles
+                dotFiles = 1;
+                continue;
+            }
+
         }
     } else {
         printf("Invalid flag detected. See 'scan -h' or 'scan --help' for instructions.\n");
         return 1;
     }
 
-    if (argc < 3) {
+    if ((argc - totalFlags) < 3) {
         singleDir = 1;
     }
 
-    if (argc == 1) { // get cwd
+    if ((argc - totalFlags) <= 1) { // get cwd
         dirStream = opendir(".");
 
         if (getcwd(dir, sizeof(dir)) != NULL) {
