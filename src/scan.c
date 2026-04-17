@@ -8,6 +8,9 @@
 #include <unistd.h>
 #include "cutie-common.h"
 
+// give error 1 for user mistake, permissions, etc
+// give error 2 for code mistakes like failed malloc
+
 void helpMenu() {
     printf("scan command basic usage:\n"
         "   scan <flags> <dirs>\n"
@@ -95,6 +98,19 @@ int main (int argc, char *argv[]) {
     char dir[PATH_MAX];
     DIR *dirStream;
 
+    // manage flags
+    int *flags = labelFlags(argc, argv);
+    if (flags != NULL) {
+        for (int i = 0; i < argc; i++) {
+            if (flags[i] == 0) {
+                helpMenu();
+            }
+        }
+    } else {
+        printf("Invalid flag detected. See 'scan -h' or 'scan --help' for instructions.\n");
+        return 1;
+    }
+
     if (argc < 3) {
         singleDir = 1;
     }
@@ -105,7 +121,7 @@ int main (int argc, char *argv[]) {
                // copied absolute cwd to dir
         } else {
                perror("Couldn't get absolute of current dir");
-               return 1;
+               return 2;
         }
 
     } else { // get dir user wants
@@ -121,7 +137,7 @@ int main (int argc, char *argv[]) {
                 } else if (dirStream == NULL) {
                     printf("Directory %s couldn't be opened: %s\n\n", argv[i], strerror(errno));
                     if (singleDir) {
-                        return 2;
+                        return 1;
                     }
                     continue;
                 }
