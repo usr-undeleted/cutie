@@ -5,6 +5,18 @@
 #include <dirent.h>
 #include <string.h>
 #include <unistd.h>
+#include "cutie-common.h"
+
+void helpMenu() {
+    printf("scan command basic usage:\n"
+        "   scan <flags> <dirs>\n"
+        "scan will search trough all directories you specificy.\n"
+        "flags:\n"
+        "   -h or --help: show this menu.\n\n"
+        "scan is part of the cutie project hosted under https://github.com/usr-undeleted/cutie licensed under the GPLv3 license."
+    );
+    exit(0);
+}
 
 // will contain a whole directory
 struct entry {
