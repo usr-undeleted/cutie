@@ -10,23 +10,8 @@ void strToLower(char *string) {
     }
 }
 
-// label flags used, return NULL if failed
-// returns int array to show all flags used; only check '-' or '--'
-// -1 = unset, not hypen
-// 0 = help menu, always
-char charFlags[] = {
-    'h'
-    // indicate where a flag is used if it isnt in every func:
-    // -b // used in: foo, bar
-};
-char *stringFlags[] = {
-    "--help"
-};
-
-int *labelFlags(int argc, char *argv[]) {
+int *labelFlags(int argc, char *argv[], char *charFlags, int charLen,  char **stringFlags, int stringLen) {
     int *returned = (int*)malloc((size_t)argc);
-    int charLen = sizeof(charFlags) / sizeof(charFlags[0]);
-    int stringLen = sizeof(stringFlags) / sizeof(stringFlags[0]);
     int fail = 0;
 
     for (int i = 0; i < argc; i++) {

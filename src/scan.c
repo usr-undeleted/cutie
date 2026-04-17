@@ -99,7 +99,16 @@ int main (int argc, char *argv[]) {
     DIR *dirStream;
 
     // manage flags
-    int *flags = labelFlags(argc, argv);
+    char charFlags[] = {
+        'h'
+    };
+    char *stringFlags[] = {
+        "--help"
+    };
+    int charLen = sizeof(charFlags) / sizeof(charFlags[0]);
+    int stringLen = sizeof(stringFlags) / sizeof(stringFlags[0]);
+
+    int *flags = labelFlags(argc, argv, charFlags, charLen, stringFlags, stringLen);
     if (flags != NULL) {
         for (int i = 0; i < argc; i++) {
             if (flags[i] == 0) {
@@ -117,12 +126,16 @@ int main (int argc, char *argv[]) {
 
     if (argc == 1) { // get cwd
         dirStream = opendir(".");
+
         if (getcwd(dir, sizeof(dir)) != NULL) {
                // copied absolute cwd to dir
         } else {
                perror("Couldn't get absolute of current dir");
                return 2;
         }
+
+        printDir(dirStream, dir);
+        closedir(dirStream);
 
     } else { // get dir user wants
         for (int i = argc - 1; i > 0; i--) { // print dirs user wants on reverse order
