@@ -45,11 +45,11 @@ void printDir(DIR *dirStream, struct dirent *currentFile) {
         dirFileCount++;
     }
 
-    //qsort(entries, dirFileCap, sizeof(struct entry), cmpEntries);
+    qsort(entries, dirFileCount, sizeof(struct entry), cmpEntries);
 
-    //for (int i = 0; i < dirFileCount + 1; i++) {
-        //printf("%-*s\033[0m", (int)largestWordSize + 1, entries[i].name);
-    //}
+    for (int i = 0; i < dirFileCount; i++) {
+        printf("%-*s\033[0m", (int)largestWordSize + 1, entries[i].name);
+    }
 }
 
 // call funcs to do work, handle errors
