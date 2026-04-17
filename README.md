@@ -1,4 +1,13 @@
 # cutie Core UTIlity Environment
+<p align="center">
+  <img src="logo/cutie.png" alt="cutie" width="335">
+</p>
+
+<p align="center">
+  <img src="https://img.shields.io/badge/ISO_C17-built_in_C-blue?logo=c">
+  <img src="https://img.shields.io/badge/license-GPLv3-blue">
+</p>
+
 Undeleted's life long goal to write their own core utils, following their own design principles, all in C alongside assembly (once i actually learn it-).  
 
 ### Will strive for:
