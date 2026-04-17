@@ -8,9 +8,6 @@
 #include <unistd.h>
 #include "cutie-common.h"
 
-// give error 1 for user mistake, permissions, etc
-// give error 2 for code mistakes like failed malloc
-
 void helpMenu() {
     printf("scan command basic usage:\n"
         "   scan <flags> <dirs>\n"
@@ -85,7 +82,7 @@ void printDir(DIR *dirStream, char *currentDir) {
         if (entries[i].type != DT_DIR) { // if its a dir
             printf("%-*s\033[0m", (int)largestWordSize + 1, entries[i].name);
         } else { // other file type
-            printf("\033[1m\033[34m%-*s\033[0m", (int)largestWordSize + 1, entries[i].name);
+            printf("\033[1m\033[34m%s/%-*s", entries[i].name, (int)(largestWordSize - strlen(entries[i].name) + 1), "");
         }
     }
 
@@ -157,15 +154,20 @@ int main (int argc, char *argv[]) {
         closedir(dirStream);
 
     } else { // get dir user wants
+        int onlyFiles = 1;
+
         for (int i = argc - 1; i > 0; i--) { // print dirs user wants on reverse order
             if (argv[i][0] != '-') {
                 dirStream = opendir(argv[i]);
                 strcpy(dir, argv[i]);
+
                 if (dirStream == NULL && errno == ENOTDIR) {
                     if (singleDir) {
                         printf("'%s' is not a directory\n", argv[i]);
+                        return 1;
                     }
                     continue;
+
                 } else if (dirStream == NULL) {
                     printf("Directory %s couldn't be opened: %s\n\n", argv[i], strerror(errno));
                     if (singleDir) {
@@ -174,9 +176,16 @@ int main (int argc, char *argv[]) {
                     continue;
                 }
 
+                onlyFiles = 0;
+
                 printDir(dirStream, dir);
                 closedir(dirStream);
             }
+        }
+
+        if (onlyFiles) {
+            printf("None of the files specified were a directory.\n");
+            return 1;
         }
     }
 
