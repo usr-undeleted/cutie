@@ -64,7 +64,7 @@ int *labelFlags(int argc, char *argv[]) {
 void helpMenu() {
     printf("scan command basic usage:\n"
         "   scan <flags> <dirs>\n"
-        "scan will search trough all directories you specificy.\n"
+        "scan will search trough all directories you specify.\n"
         "flags:\n"
         "   -h or --help: show this menu.\n\n"
         "scan is part of the cutie project hosted under https://github.com/usr-undeleted/cutie licensed under the GPLv3 license.\n"
