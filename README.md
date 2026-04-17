@@ -19,6 +19,7 @@ Undeleted's life long goal to write their own core utils, following their own de
 - file/dir removal (rm); applies to directories and regular files
 - file/dir creation (create); create directories with "name/". should support recursion, with flag or not (create folder/file)
 - install script. Will let you pick compile flags at start (native march, debugging, output location, static linking, etc), and let the user pick what utils to compile.
+- timeout (timeout); :p
 
 ### (temp) compiling:
 - ALWAYS use clang; testing is done exclusively with clang
