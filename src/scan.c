@@ -12,9 +12,13 @@ struct entry {
     unsigned char type; // DT_DIR, DT_REG, etc
 };
 
+// qsort
 int cmpEntries(const void *a, const void *b) {
     return strcmp(((struct entry *)a)->name, ((struct entry *)b)->name);
 }
+
+// decide when to print dir name; if only one dir searched, dont
+int singleDir = 0;
 
 void printDir(DIR *dirStream, struct dirent *currentFile, char *currentDir) {
     size_t dirFileCap = 64;
@@ -46,7 +50,9 @@ void printDir(DIR *dirStream, struct dirent *currentFile, char *currentDir) {
     qsort(entries, dirFileCount, sizeof(struct entry), cmpEntries);
 
     // say dir name
-    printf("%s:\n", currentDir);
+    if (!singleDir) {
+        printf("%s:\n", currentDir);
+    }
 
     // print
     for (int i = 0; i < dirFileCount; i++) {
@@ -65,6 +71,9 @@ void printDir(DIR *dirStream, struct dirent *currentFile, char *currentDir) {
 
     // pretty it up
     printf("\n");
+
+    // never forget!
+    free(entries);
 }
 
 // call funcs to do work, handle errors
@@ -87,6 +96,10 @@ int main (int argc, char *argv[]) {
         strcpy(dir, argv[1]);
     }
 
+    if (argc < 3) {
+        singleDir = 1;
+    }
+
     if (dirStream == NULL) {
         perror("Directory couldn't be opened");
         return 2;
@@ -98,5 +111,6 @@ int main (int argc, char *argv[]) {
         perror("Couldn't close directory");
         return 3;
     }
+
     return 0;
 }
