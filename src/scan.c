@@ -1,3 +1,4 @@
+#include <linux/limits.h>
 #include <stddef.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -15,7 +16,7 @@ int cmpEntries(const void *a, const void *b) {
     return strcmp(((struct entry *)a)->name, ((struct entry *)b)->name);
 }
 
-void printDir(DIR *dirStream, struct dirent *currentFile) {
+void printDir(DIR *dirStream, struct dirent *currentFile, char *currentDir) {
     size_t dirFileCap = 64;
     size_t dirFileCount = 0;
     size_t largestWordSize = 0;
@@ -44,6 +45,9 @@ void printDir(DIR *dirStream, struct dirent *currentFile) {
     // sort alphabeticallly
     qsort(entries, dirFileCount, sizeof(struct entry), cmpEntries);
 
+    // say dir name
+    printf("%s:\n", currentDir);
+
     // print
     for (int i = 0; i < dirFileCount; i++) {
 
@@ -65,26 +69,34 @@ void printDir(DIR *dirStream, struct dirent *currentFile) {
 
 // call funcs to do work, handle errors
 int main (int argc, char *argv[]) {
-    char *dir;
+    char dir[PATH_MAX];
     DIR *dirStream;
     struct dirent *currentFile;
 
     if (argc == 1) { // get cwd
         dirStream = opendir(".");
+        if (getcwd(dir, sizeof(dir)) != NULL) {
+               // copied absolute cwd to dir
+        } else {
+               perror("Couldn't get absolute of current dir");
+               return 1;
+        }
+
     } else { // get dir user wants
         dirStream = opendir(argv[1]);
+        strcpy(dir, argv[1]);
     }
 
     if (dirStream == NULL) {
         perror("Directory couldn't be opened");
-        return 1;
+        return 2;
     }
 
-    printDir(dirStream, currentFile);
+    printDir(dirStream, currentFile, dir);
 
     if (closedir(dirStream) == -1) {
         perror("Couldn't close directory");
-        return -1;
+        return 3;
     }
     return 0;
 }
