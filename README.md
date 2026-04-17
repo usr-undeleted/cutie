@@ -19,3 +19,16 @@ Undeleted's life long goal to write their own core utils, following their own de
 - file/dir removal (rm); applies to directories and regular files
 - file/dir creation (create); create directories with "name/". should support recursion, with flag or not (create folder/file)
 - install script. Will let you pick compile flags at start (native march, debugging, output location, static linking, etc), and let the user pick what utils to compile.
+
+### (temp) compiling:
+- ALWAYS use clang; testing is done exclusively with clang
+
+## Code guidelines
+- Small commenting, only when needed, as in:
+  - Big section of code. Use comment to indicate its function
+  - Unclear purpose of something
+- Efficient, small as possible code
+- Reuse utilities as much as possible; avoid adding new headers
+- If a function is used in more than one bin, put it in a commom lib (src/cutiecommon.h)
+- Vibe coding WILL be rejected. The reviewing WILL be done by humans ONLY. Using AI for coding assitance is acceptable, as long as it respects the rules set.
+
