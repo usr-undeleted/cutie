@@ -11,7 +11,7 @@ void strToLower(char *string) {
 }
 
 int *labelFlags(int argc, char *argv[], char *charFlags, int charLen,  char **stringFlags, int stringLen) {
-    int *returned = (int*)malloc((size_t)argc);
+    int *returned = (int*)malloc((size_t)argc * sizeof(argc));
     int fail = 0;
     int match = 0;
 
