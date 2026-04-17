@@ -179,7 +179,7 @@ int main (int argc, char *argv[]) {
                 onlyFiles = 0;
 
                 printDir(dirStream, dir);
-                printf("\n");
+                printf("\033[0m\n");
                 closedir(dirStream);
             }
         }
