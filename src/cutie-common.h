@@ -65,7 +65,7 @@ char *determineColor(const char *filename) {
     }
 
     char *colors = strdup(lsColors);
-    char *token = strtok(lsColors, ":");
+    char *token = strtok(colors, ":");
     char *colorCode = NULL;
 
     while (token != NULL) {
