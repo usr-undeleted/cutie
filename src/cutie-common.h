@@ -50,3 +50,39 @@ int *labelFlags(int argc, char *argv[], char *charFlags, int charLen,  char **st
         return NULL;
     }
 }
+
+// return color depending on file extension
+char *determineColor(const char *filename) {
+    char *lsColors = getenv("LS_COLORS"); // NEVER use this
+    char *normal = strdup("0");
+    if (!lsColors) {
+        return normal;
+    }
+
+    const char *extension = strrchr(filename, '.');
+    if (!extension) {
+        return normal;
+    }
+
+    char *colors = strdup(lsColors);
+    char *token = strtok(lsColors, ":");
+    char *colorCode = NULL;
+
+    while (token != NULL) {
+        if (token[0] == '*' && strncmp(token + 1, extension, strlen(extension)) == 0) {
+            colorCode = strchr(token, '=');
+            if (colorCode) {
+                colorCode++;
+                break;
+            }
+        }
+        token = strtok(NULL, ":");
+    }
+
+    free(colors);
+    if (colorCode) {
+        return colorCode;
+    } else {
+        return normal;
+    }
+}

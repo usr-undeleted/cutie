@@ -79,17 +79,16 @@ void printDir(DIR *dirStream, char *currentDir) {
             continue;
         }
 
+        char *colorCode = determineColor(entries[i].name);
+
         if (entries[i].type == DT_DIR) { // if its a dir
             char displayName[256];
             snprintf(displayName, sizeof(displayName), "%s/", entries[i].name);
-            printf("\033[1m\033[34m%-*s\033[0m", (int)largestWordSize + 2, displayName);
+            printf("\033[1m\033[34m%s\033[0m\n", displayName);
         } else { // other file type
-            printf("%-*s", (int)largestWordSize + 2, entries[i].name);
+            printf("\033[%sm%-*s\033[0m\n", colorCode,(int)largestWordSize - (int)strlen(entries[i].name), entries[i].name);
         }
     }
-
-    // pretty it up
-    printf("\n");
 
     // never forget!
     free(entries);
@@ -181,7 +180,9 @@ int main (int argc, char *argv[]) {
                 onlyFiles = 0;
 
                 printDir(dirStream, dir);
-                printf("\033[0m\n");
+                if (!singleDir) {
+                    printf("\033[0m\n");
+                }
                 closedir(dirStream);
             }
         }
