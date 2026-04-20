@@ -272,7 +272,7 @@ int main (int argc, char *argv[]) {
             }
         }
 
-        if (!hadFile && hadDir) {
+        if (!hadFile && hadDir && !singleDir) {
             printf("\033[A");
         } else if (hadFile && hadDir) {
             printf("\033[A");
