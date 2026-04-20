@@ -151,7 +151,7 @@ int main (int argc, char *argv[]) {
         closedir(dirStream);
 
     } else { // get dir user wants
-        for (int i = argc - 1; i > 0; i--) { // print dirs user wants on reverse order
+        for (int i = 1; i < argc; i++) { // print dirs user wants on reverse order
             if (argv[i][0] != '-') {
                 dirStream = opendir(argv[i]);
                 strcpy(dir, argv[i]);
