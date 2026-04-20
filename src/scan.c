@@ -224,7 +224,7 @@ int main (int argc, char *argv[]) {
                             if (!singleDir) {
                                 printf("\033[%sm%s\033[0m ", colorCode, argv[i]);
                             } else {
-                                printf("\033[%sm%s\033[0m", colorCode, argv[i]);
+                                printf("\033[%sm%s\033[0m", colorCode, resolved);
                             }
                         }
 
@@ -241,7 +241,7 @@ int main (int argc, char *argv[]) {
         }
 
         if (hadDir && hadFile) {
-            printf("\n\n");
+            printf("\n");
         } else if (!hadDir && hadFile) {
             printf("\n");
         }
@@ -274,9 +274,9 @@ int main (int argc, char *argv[]) {
             }
         }
 
-        if (hadFile && hadDir) {
+        if (!hadFile && hadDir) {
             printf("\033[A");
-        } else if (!hadFile && !singleDir) {
+        } else if (hadFile && hadDir) {
             printf("\033[A");
         }
     }
