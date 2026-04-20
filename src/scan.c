@@ -9,6 +9,14 @@
 #include <unistd.h>
 #include "cutie-common.h"
 
+// decide when to print dir name; if only one dir searched, dont
+int singleDir = 0;
+// show dotfiles or not
+int dotFiles = 0;
+// use a '/' after a dir or not
+int useBar = 0;
+// color var located in cutie-common.h
+
 void helpMenu() {
     printf("scan command basic usage:\n"
         "   scan <flags> <dirs>\n"
@@ -33,15 +41,6 @@ struct entry {
 int cmpEntries(const void *a, const void *b) {
     return strcasecmp(((struct entry *)a)->name, ((struct entry *)b)->name);
 }
-
-// decide when to print dir name; if only one dir searched, dont
-int singleDir = 0;
-// show dotfiles or not
-int dotFiles = 0;
-// use color or not
-int useColor = 0;
-// use a '/' after a dir or not
-int useBar = 0;
 
 void printDir(DIR *dirStream, char *currentDir) {
     size_t dirFileCap = 64;
@@ -87,10 +86,13 @@ void printDir(DIR *dirStream, char *currentDir) {
             continue;
         }
 
-        char *colorCode = "0";
-        if (useColor) {
-            colorCode = determineColor(entries[i].name);
+        char resolved[PATH_MAX];
+
+        if ((realpath(entries[i].name, resolved)) == NULL) {
+            printf("Couldn't resolve realpath for file.\n");
+            exit(2);
         }
+        char *colorCode = determineColor(resolved) ? determineColor(resolved) : "0";
 
         // we'll use this to check if executable
         char fullPath[PATH_MAX];
@@ -208,6 +210,7 @@ int main (int argc, char *argv[]) {
                         // executable
                         if (S_ISREG(st.st_mode) && (st.st_mode & (S_IXUSR | S_IXGRP | S_IXOTH))) {
                             char *colorCode = useColor ? "32;1" : "0";
+
                             if (!singleDir) {
                                 printf("\033[%sm%s\033[0m ", colorCode, argv[i]);
                             } else {
@@ -216,7 +219,8 @@ int main (int argc, char *argv[]) {
 
                         // regular file
                         } else if (S_ISREG(st.st_mode)) {
-                            char *colorCode = useColor ? determineColor(resolved) : "0";
+                            char *colorCode = determineColor(resolved) ? determineColor(resolved) : "0";
+
                             if (!singleDir) {
                                 printf("\033[%sm%s\033[0m ", colorCode, argv[i]);
                             } else {
@@ -229,7 +233,6 @@ int main (int argc, char *argv[]) {
                         return 1;
                     }
 
-                    closedir(dirStream);
                     continue;
                 } else {
                     hadDir = 1;

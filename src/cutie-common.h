@@ -77,16 +77,24 @@ int *labelFlags(int argc, char *argv[], struct flagInput *input) {
 }
 
 // return color depending on file extension
+// return null on fail, caller should see
+// null and use their own fallback
+//
+// use color or not
+int useColor = 0;
 char *determineColor(const char *filename) {
+    if (!useColor) {
+        return NULL;
+    }
+
     char *lsColors = getenv("LS_COLORS"); // NEVER use this
-    char *normal = strdup("0");
     if (!lsColors) {
-        return normal;
+        return NULL;
     }
 
     const char *extension = strrchr(filename, '.');
     if (!extension) {
-        return normal;
+        return NULL;
     }
 
     char *colors = strdup(lsColors);
@@ -108,6 +116,6 @@ char *determineColor(const char *filename) {
     if (colorCode) {
         return colorCode;
     } else {
-        return normal;
+        return NULL;
     }
 }
