@@ -1,6 +1,5 @@
 #include <linux/limits.h>
 #include <sys/stat.h>
-#include <stddef.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <dirent.h>
@@ -86,27 +85,27 @@ void printDir(DIR *dirStream, char *currentDir) {
             continue;
         }
 
+        // full path to file
         char resolved[PATH_MAX];
-
-        if ((realpath(entries[i].name, resolved)) == NULL) {
+        if ((realpath(entries[i].name, resolved)) == NULL && entries[i].type == DT_DIR) {
             printf("Couldn't resolve realpath for file.\n");
             exit(2);
         }
         char *colorCode = determineColor(resolved) ? determineColor(resolved) : "0";
 
         // we'll use this to check if executable
-        char fullPath[PATH_MAX];
-        snprintf(fullPath, sizeof(fullPath), "%s/%s", currentDir, entries[i].name);
         struct stat st;
         // executable
-        if (entries[i].type == DT_REG && stat(fullPath, &st) == 0 && (st.st_mode & (S_IXUSR | S_IXGRP | S_IXOTH))) {
-            char *executableColor = useColor ? "32;1" : "0";
-            printf("\033[%sm%s\033[0m\n", executableColor, entries[i].name);
+        if (entries[i].type == DT_REG || entries[i].type == DT_UNKNOWN
+            && stat(resolved, &st) == 0
+            && (st.st_mode & (S_IXUSR | S_IXGRP | S_IXOTH))) {
+                char *executableColor = useColor ? "32;1" : "0";
+                printf("\033[%sm%s\033[0m\n", executableColor, entries[i].name);
 
         // directory
         } else if (entries[i].type == DT_DIR) {
             char displayName[256];
-            char *color = useColor ? "34" : "00";
+            char *color = useColor ? "34" : "0";
             char *bar = useBar ? "%s/" : "%s";
 
             snprintf(displayName, sizeof(displayName), bar, entries[i].name);
@@ -114,7 +113,7 @@ void printDir(DIR *dirStream, char *currentDir) {
 
         // any other file
         } else {
-            printf("\033[%sm%-*s\033[0m\n", colorCode,(int)largestWordSize - (int)strlen(entries[i].name), entries[i].name);
+            printf("\033[%sm%s\033[0m\n", colorCode, entries[i].name);
         }
     }
 
@@ -172,6 +171,7 @@ int main (int argc, char *argv[]) {
         printf("Invalid flag detected. See 'scan -h' or 'scan --help' for instructions.\n");
         return 1;
     }
+    free(flags);
 
     if ((argc - totalFlags) < 3) {
         singleDir = 1;
