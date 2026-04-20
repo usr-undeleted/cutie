@@ -1,4 +1,5 @@
 #include <linux/limits.h>
+#include <sys/stat.h>
 #include <stddef.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -91,7 +92,17 @@ void printDir(DIR *dirStream, char *currentDir) {
             colorCode = determineColor(entries[i].name);
         }
 
-        if (entries[i].type == DT_DIR) { // if its a dir
+        // we'll use this to check if executable
+        char fullPath[PATH_MAX];
+        snprintf(fullPath, sizeof(fullPath), "%s/%s", currentDir, entries[i].name);
+        struct stat st;
+        // executable
+        if (entries[i].type == DT_REG && stat(fullPath, &st) == 0 && (st.st_mode & (S_IXUSR | S_IXGRP | S_IXOTH))) {
+            char *executableColor = useColor ? "32;1" : "0";
+            printf("\033[%sm%s\033[0m\n", executableColor, entries[i].name);
+
+        // directory
+        } else if (entries[i].type == DT_DIR) {
             char displayName[256];
             char *color = useColor ? "34" : "00";
             char *bar = useBar ? "%s/" : "%s";
@@ -99,7 +110,8 @@ void printDir(DIR *dirStream, char *currentDir) {
             snprintf(displayName, sizeof(displayName), bar, entries[i].name);
             printf("\033[1m\033[%sm%s\033[0m\n", color, displayName);
 
-        } else { // other file type
+        // any other file
+        } else {
             printf("\033[%sm%-*s\033[0m\n", colorCode,(int)largestWordSize - (int)strlen(entries[i].name), entries[i].name);
         }
     }
