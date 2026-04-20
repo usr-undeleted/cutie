@@ -1,3 +1,4 @@
+#include <asm-generic/errno-base.h>
 #include <linux/limits.h>
 #include <stddef.h>
 #include <stdio.h>
@@ -68,7 +69,7 @@ void printDir(DIR *dirStream, char *currentDir) {
 
     // say dir name
     if (!singleDir) {
-        printf("\033[34m%s\033[0m:\n", currentDir);
+        printf("%s:\n", currentDir);
     }
 
     // print
@@ -151,21 +152,47 @@ int main (int argc, char *argv[]) {
         closedir(dirStream);
 
     } else { // get dir user wants
-        for (int i = 1; i < argc; i++) { // print dirs user wants on reverse order
+        // first pass, print files
+        for (int i = 1; i < argc; i++) {
+            if (argv[i][0] != '-') {
+                dirStream = opendir(argv[i]);
+
+                if (dirStream == NULL && errno == ENOTDIR) {
+                    char resolved[PATH_MAX];
+                    char *colorCode = determineColor(argv[i]);
+
+                    if (realpath(argv[i], resolved) != NULL) {
+                        if (!singleDir) {
+                            printf("\033[%sm%s\033[0m ", colorCode, argv[i]);
+                        } else {
+                            printf("\033[%sm%s\033[0m", colorCode, resolved);
+                        }
+
+                    } else {
+                        perror("File couldn't be opened");
+                        return 1;
+                    }
+
+                    continue;
+                }
+
+                closedir(dirStream);
+            }
+        }
+        printf("\n\n");
+
+        // second pass, print dirs and children
+        for (int i = 1; i < argc; i++) {
             if (argv[i][0] != '-') {
                 dirStream = opendir(argv[i]);
                 strcpy(dir, argv[i]);
 
-                if (dirStream == NULL && errno == ENOTDIR) {
-                    char resolved[PATH_MAX];
-                    if (realpath(argv[i], resolved) != NULL) {
-                        printf("%s\n\n", resolved);
+                if (dirStream == NULL) {
+                    if (errno == ENOTDIR) {
+                        continue;
                     }
 
-                    continue;
-
-                } else if (dirStream == NULL) {
-                    printf("Directory %s couldn't be opened: %s\n\n", argv[i], strerror(errno));
+                    printf("Directory '%s' couldn't be opened: %s\n\n", argv[i], strerror(errno));
                     if (singleDir) {
                         return 1;
                     }
@@ -181,6 +208,5 @@ int main (int argc, char *argv[]) {
         }
         printf("\033[A");
     }
-
     return 0;
 }
