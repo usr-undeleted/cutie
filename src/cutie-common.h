@@ -40,6 +40,7 @@ int *labelFlags(int argc, char *argv[], struct flagInput *input) {
     int index = 0;
 
     for (int i = 0; i < argc; i++) {
+        int matched = 0;
         if (argv[i][0] == '-') {
 
             if (argv[i][1] == '-') {
@@ -47,9 +48,12 @@ int *labelFlags(int argc, char *argv[], struct flagInput *input) {
                     if (!strcmp(argv[i], input->stringFlags[j])) {
                         returned[index] = j;
                         index++;
+                        matched = 1;
                         break;
                     }
                 }
+
+                if (!matched) return NULL;
 
             } else {
                 for (int j = 1; j < strlen(argv[i]); j++) {
