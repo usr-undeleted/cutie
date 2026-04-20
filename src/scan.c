@@ -199,17 +199,36 @@ int main (int argc, char *argv[]) {
                 if (dirStream == NULL && errno == ENOTDIR) {
                     hadFile = 1;
                     char resolved[PATH_MAX];
-                    char *colorCode = "0";
-                    if (useColor) {
-                        colorCode = determineColor(argv[i]);
-                    }
+
+                    struct stat st;
 
                     if (realpath(argv[i], resolved) != NULL) {
-                        if (!singleDir) {
-                            printf("\033[%sm%s\033[0m ", colorCode, argv[i]);
-                        } else {
-                            printf("\033[%sm%s\033[0m", colorCode, resolved);
+                        stat(resolved, &st);
+
+                        // executable
+                        if (S_ISREG(st.st_mode) && (st.st_mode & (S_IXUSR | S_IXGRP | S_IXOTH))) {
+                            char *colorCode = useColor ? "32;1" : "0";
+                            if (!singleDir) {
+                                printf("\033[%sm%s\033[0m ", colorCode, argv[i]);
+                            } else {
+                                printf("\033[%sm%s\033[0m", colorCode, argv[i]);
+                            }
+
+                        // regular file
+                        } else if (S_ISREG(st.st_mode)) {
+                            char *colorCode = useColor ? determineColor(resolved) : "0";
+                            if (!singleDir) {
+                                printf("\033[%sm%s\033[0m ", colorCode, argv[i]);
+                            } else {
+                                printf("\033[%sm%s\033[0m", colorCode, argv[i]);
+                            }
                         }
+
+                        //if (!singleDir) {
+                        //    printf("\033[%sm%s\033[0m ", colorCode, argv[i]);
+                        //} else {
+                        //    printf("\033[%sm%s\033[0m", colorCode, resolved);
+                        //}
 
                     } else {
                         perror("File couldn't be opened");
