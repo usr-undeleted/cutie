@@ -1,6 +1,5 @@
 #include <stdlib.h>
 #include <string.h>
-#include <ctype.h>
 
 // return int array that contains int values for each argv that starts with '-' or '--'
 // return NULL on error
