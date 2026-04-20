@@ -87,7 +87,7 @@ void printDir(DIR *dirStream, char *currentDir) {
 
         // full path to file
         char resolved[PATH_MAX];
-        if ((realpath(entries[i].name, resolved)) == NULL && entries[i].type == DT_DIR) {
+        if ((realpath(entries[i].name, resolved)) == NULL && entries[i].type != DT_DIR) {
             printf("Couldn't resolve realpath for file.\n");
             exit(2);
         }
