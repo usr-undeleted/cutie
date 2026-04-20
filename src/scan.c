@@ -28,7 +28,7 @@ struct entry {
 
 // qsort
 int cmpEntries(const void *a, const void *b) {
-    return strcmp(((struct entry *)a)->name, ((struct entry *)b)->name);
+    return strcasecmp(((struct entry *)a)->name, ((struct entry *)b)->name);
 }
 
 // decide when to print dir name; if only one dir searched, dont

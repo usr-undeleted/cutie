@@ -2,13 +2,6 @@
 #include <string.h>
 #include <ctype.h>
 
-// tolower in strings
-void strToLower(char *string) {
-    for (int i = 0; i < strlen(string); i++) {
-        string[i] = tolower(string[i]);
-    }
-}
-
 // return int array that contains int values for each argv that starts with '-' or '--'
 // return NULL on error
 int *labelFlags(int argc, char *argv[], char *charFlags, int charLen,  char **stringFlags, int stringLen, size_t *flagCount) {
