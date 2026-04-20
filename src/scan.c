@@ -96,9 +96,7 @@ void printDir(DIR *dirStream, char *currentDir) {
         // we'll use this to check if executable
         struct stat st;
         // executable
-        if (entries[i].type == DT_REG || entries[i].type == DT_UNKNOWN
-            && stat(resolved, &st) == 0
-            && (st.st_mode & (S_IXUSR | S_IXGRP | S_IXOTH))) {
+        if (S_ISREG(st.st_mode) && (st.st_mode & (S_IXUSR | S_IXGRP | S_IXOTH))) {
                 char *executableColor = useColor ? "32;1" : "0";
                 printf("\033[%sm%s\033[0m\n", executableColor, entries[i].name);
 
