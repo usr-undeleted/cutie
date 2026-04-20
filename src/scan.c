@@ -15,7 +15,9 @@ void helpMenu() {
         "scan will search trough all directories you specify.\n"
         "flags:\n"
         "   -h or --help: show this menu.\n"
-        "   -a or --all: show all files, as, by default, scan hides dotfiles.\n\n"
+        "   -a or --all: show all files, as, by default, scan hides dotfiles.\n"
+        "   -c or --color: toggle color.\n"
+        "   -b or --bar: toggle the use of a '/' after directories.\n\n"
         "scan is part of the cutie project hosted under https://github.com/usr-undeleted/cutie licensed under the GPLv3 license.\n"
     );
     exit(0);
@@ -36,6 +38,10 @@ int cmpEntries(const void *a, const void *b) {
 int singleDir = 0;
 // show dotfiles or not
 int dotFiles = 0;
+// use color or not
+int useColor = 0;
+// use a '/' after a dir or not
+int useBar = 0;
 
 void printDir(DIR *dirStream, char *currentDir) {
     size_t dirFileCap = 64;
@@ -68,8 +74,9 @@ void printDir(DIR *dirStream, char *currentDir) {
     qsort(entries, dirFileCount, sizeof(struct entry), cmpEntries);
 
     // say dir name
+    char *bar = useBar ? "/" : "";
     if (!singleDir) {
-        printf("%s:\n", currentDir);
+        printf("%s%s:\n", currentDir, bar);
     }
 
     // print
@@ -80,12 +87,19 @@ void printDir(DIR *dirStream, char *currentDir) {
             continue;
         }
 
-        char *colorCode = determineColor(entries[i].name);
+        char *colorCode = "0";
+        if (useColor) {
+            colorCode = determineColor(entries[i].name);
+        }
 
         if (entries[i].type == DT_DIR) { // if its a dir
             char displayName[256];
-            snprintf(displayName, sizeof(displayName), "%s/", entries[i].name);
-            printf("\033[1m\033[34m%s\033[0m\n", displayName);
+            char *color = useColor ? "34" : "00";
+            char *bar = useBar ? "%s/" : "%s";
+
+            snprintf(displayName, sizeof(displayName), bar, entries[i].name);
+            printf("\033[1m\033[%sm%s\033[0m\n", color, displayName);
+
         } else { // other file type
             printf("\033[%sm%-*s\033[0m\n", colorCode,(int)largestWordSize - (int)strlen(entries[i].name), entries[i].name);
         }
@@ -111,11 +125,15 @@ int main (int argc, char *argv[]) {
     // manage flags
     char charFlags[] = {
         'h',
-        'a'
+        'a',
+        'c',
+        'b'
     };
     char *stringFlags[] = {
         "--help",
-        "--all"
+        "--all",
+        "--color",
+        "--bar"
     };
     int charLen = sizeof(charFlags) / sizeof(charFlags[0]);
     int stringLen = sizeof(stringFlags) / sizeof(stringFlags[0]);
@@ -132,6 +150,10 @@ int main (int argc, char *argv[]) {
             if (flags[i] == 0) helpMenu();
 
             if (flags[i] == 1) dotFiles = 1;
+
+            if (flags[i] == 2) useColor = 1;
+
+            if (flags[i] == 3) useBar = 1;
         }
     } else {
         printf("Invalid flag detected. See 'scan -h' or 'scan --help' for instructions.\n");
@@ -157,13 +179,17 @@ int main (int argc, char *argv[]) {
 
     } else { // get dir user wants
         // first pass, print files
+        int hadDir = 0;
         for (int i = 1; i < argc; i++) {
             if (argv[i][0] != '-') {
                 dirStream = opendir(argv[i]);
 
                 if (dirStream == NULL && errno == ENOTDIR) {
                     char resolved[PATH_MAX];
-                    char *colorCode = determineColor(argv[i]);
+                    char *colorCode = "0";
+                    if (useColor) {
+                        colorCode = determineColor(argv[i]);
+                    }
 
                     if (realpath(argv[i], resolved) != NULL) {
                         if (!singleDir) {
@@ -178,11 +204,15 @@ int main (int argc, char *argv[]) {
                     }
 
                     continue;
+                } else {
+                    hadDir = 1;
                 }
 
                 closedir(dirStream);
             }
         }
+
+        printf("\n\n");
 
         // second pass, print dirs and children
         for (int i = 1; i < argc; i++) {
