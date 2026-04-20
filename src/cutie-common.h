@@ -1,5 +1,7 @@
 #include <stdlib.h>
 #include <string.h>
+#include <sys/ioctl.h>
+#include <asm-generic/ioctls.h>
 
 // return int array that contains int values for each argv that starts with '-' or '--'
 // return NULL on error

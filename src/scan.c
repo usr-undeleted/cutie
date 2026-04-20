@@ -77,6 +77,10 @@ void printDir(DIR *dirStream, char *currentDir) {
         printf("%s%s:\n", currentDir, bar);
     }
 
+    // get term size
+    struct winsize dimensions;
+    ioctl(STDOUT_FILENO, TIOCGWINSZ, &dimensions);
+    int count = 0;
     // print
     for (int i = 0; i < dirFileCount; i++) {
 
@@ -85,9 +89,24 @@ void printDir(DIR *dirStream, char *currentDir) {
             continue;
         }
 
+        // see if it has spaces
+        char apostrophe = strchr(entries[i].name, ' ') ? 39 : '\0';
+
+        // see if we have to print a new line
+        count += strlen(entries[i].name) + 3;
+        if (entries[i].name[0] == '.' && !dotFiles) {
+            count -= strlen(entries[i].name) + 3;
+        }
+        if (count > dimensions.ws_col) {
+            count = 0;
+            printf("\n");
+        }
+
         // full path to file
         char resolved[PATH_MAX];
-        if ((realpath(entries[i].name, resolved)) == NULL && entries[i].type != DT_DIR) {
+        char fullPath[PATH_MAX];
+        snprintf(fullPath, sizeof(fullPath), "%s/%s", currentDir, entries[i].name);
+        if (entries[i].type != DT_DIR && realpath(fullPath, resolved) == NULL) {
             printf("Couldn't resolve realpath for file.\n");
             exit(2);
         }
@@ -95,10 +114,12 @@ void printDir(DIR *dirStream, char *currentDir) {
 
         // we'll use this to check if executable
         struct stat st;
+        stat(resolved, &st);
+
         // executable
-        if (S_ISREG(st.st_mode) && (st.st_mode & (S_IXUSR | S_IXGRP | S_IXOTH))) {
+        if (S_ISREG(st.st_mode) && (st.st_mode & (S_IXUSR | S_IXGRP | S_IXOTH)) && entries[i].type != DT_DIR) {
                 char *executableColor = useColor ? "32;1" : "0";
-                printf("\033[%sm%s\033[0m\n", executableColor, entries[i].name);
+                printf("\033[%sm%c%s%c\033[0m  ", executableColor, apostrophe, entries[i].name, apostrophe);
 
         // directory
         } else if (entries[i].type == DT_DIR) {
@@ -107,13 +128,14 @@ void printDir(DIR *dirStream, char *currentDir) {
             char *bar = useBar ? "%s/" : "%s";
 
             snprintf(displayName, sizeof(displayName), bar, entries[i].name);
-            printf("\033[1m\033[%sm%s\033[0m\n", color, displayName);
+            printf("\033[1m\033[%sm%c%s%c\033[0m  ", color, apostrophe, displayName, apostrophe);
 
         // any other file
         } else {
-            printf("\033[%sm%s\033[0m\n", colorCode, entries[i].name);
+            printf("\033[%sm%c%s%c\033[0m  ", colorCode, apostrophe, entries[i].name, apostrophe);
         }
     }
+    printf("\n");
 
     // never forget!
     free(entries);
@@ -239,7 +261,7 @@ int main (int argc, char *argv[]) {
         }
 
         if (hadDir && hadFile) {
-            printf("\n");
+            printf("\n\n");
         } else if (!hadDir && hadFile) {
             printf("\n");
         }
@@ -256,8 +278,9 @@ int main (int argc, char *argv[]) {
                             continue;
                         }
 
-                        printf("Directory '%s' couldn't be opened: %s\n", argv[i], strerror(errno));
+                        printf("Directory '%s' couldn't be opened: %s\n\n", argv[i], strerror(errno));
                         if (singleDir) {
+                            printf("\033[A");
                             return 1;
                         }
                         continue;
