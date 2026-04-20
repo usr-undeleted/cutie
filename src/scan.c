@@ -119,12 +119,16 @@ int main (int argc, char *argv[]) {
     };
     int charLen = sizeof(charFlags) / sizeof(charFlags[0]);
     int stringLen = sizeof(stringFlags) / sizeof(stringFlags[0]);
+    struct flagInput input = {
+        charFlags, charLen,
+        stringFlags, stringLen,
+        0
+    };
 
-    size_t flagCount;
-    int *flags = labelFlags(argc, argv, charFlags, charLen, stringFlags, stringLen, &flagCount);
+    int *flags = labelFlags(argc, argv, &input);
 
     if (flags != NULL) {
-        for (int i = 0; i < flagCount; i++) {
+        for (int i = 0; i < input.flagCount; i++) {
             if (flags[i] == 0) helpMenu();
 
             if (flags[i] == 1) dotFiles = 1;
@@ -179,7 +183,6 @@ int main (int argc, char *argv[]) {
                 closedir(dirStream);
             }
         }
-        printf("\n\n");
 
         // second pass, print dirs and children
         for (int i = 1; i < argc; i++) {

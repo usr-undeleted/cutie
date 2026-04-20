@@ -4,9 +4,16 @@
 
 // return int array that contains int values for each argv that starts with '-' or '--'
 // return NULL on error
-int *labelFlags(int argc, char *argv[], char *charFlags, int charLen,  char **stringFlags, int stringLen, size_t *flagCount) {
+struct flagInput {
+    char *charFlags;
+    int charLen;
+    char **stringFlags;
+    int stringLen;
+    size_t flagCount;
+};
 
-    // get malloc size
+int *labelFlags(int argc, char *argv[], struct flagInput *input) {
+
     size_t size = 0;
     int hasFlag = 0;
     for (int i = 0; i < argc; i++) {
@@ -26,35 +33,30 @@ int *labelFlags(int argc, char *argv[], char *charFlags, int charLen,  char **st
     }
 
     if (size == 0) {
-        *flagCount = 0;
+        input->flagCount = 0;
         return (int*)malloc(sizeof(int));
     }
 
-    int *returned = (int*)malloc(size *sizeof(int));
-
-    // loop trough flag args
-    int index = 0; // returned index
+    int *returned = (int*)malloc(size * sizeof(int));
+    int index = 0;
 
     for (int i = 0; i < argc; i++) {
-        returned[i] = -1;
         if (argv[i][0] == '-') {
 
-            // if its a full word flag
             if (argv[i][1] == '-') {
-                for (int j = 0; j < stringLen; j++) {
-                    if (!strcmp(argv[i], stringFlags[j])) {
+                for (int j = 0; j < input->stringLen; j++) {
+                    if (!strcmp(argv[i], input->stringFlags[j])) {
                         returned[index] = j;
                         index++;
                         break;
                     }
                 }
 
-            // if its just a '-thing'
             } else {
                 for (int j = 1; j < strlen(argv[i]); j++) {
                     int matched = 0;
-                    for (int k = 0; k < charLen; k++) {
-                        if (argv[i][j] == charFlags[k]) {
+                    for (int k = 0; k < input->charLen; k++) {
+                        if (argv[i][j] == input->charFlags[k]) {
                             returned[index] = k;
                             index++;
                             matched = 1;
@@ -67,7 +69,7 @@ int *labelFlags(int argc, char *argv[], char *charFlags, int charLen,  char **st
         }
     }
 
-    *flagCount = (size_t)index;
+    input->flagCount = (size_t)index;
     return returned;
 }
 
