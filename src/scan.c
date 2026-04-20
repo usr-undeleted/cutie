@@ -224,12 +224,6 @@ int main (int argc, char *argv[]) {
                             }
                         }
 
-                        //if (!singleDir) {
-                        //    printf("\033[%sm%s\033[0m ", colorCode, argv[i]);
-                        //} else {
-                        //    printf("\033[%sm%s\033[0m", colorCode, resolved);
-                        //}
-
                     } else {
                         perror("File couldn't be opened");
                         return 1;
