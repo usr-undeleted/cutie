@@ -68,7 +68,7 @@ void printDir(DIR *dirStream, char *currentDir) {
 
     // say dir name
     if (!singleDir) {
-        printf("%s:\n", currentDir);
+        printf("\033[34m%s\033[0m:\n", currentDir);
     }
 
     // print
@@ -101,6 +101,11 @@ int main (int argc, char *argv[]) {
 
     // exclude flags from total arg count
     int totalFlags = 0;
+    for (int i = 0; i < argc; i++) {
+        if (argv[i][0] == '-') {
+            totalFlags++;
+        }
+    }
 
     // manage flags
     char charFlags[] = {
@@ -114,23 +119,14 @@ int main (int argc, char *argv[]) {
     int charLen = sizeof(charFlags) / sizeof(charFlags[0]);
     int stringLen = sizeof(stringFlags) / sizeof(stringFlags[0]);
 
-    int *flags = labelFlags(argc, argv, charFlags, charLen, stringFlags, stringLen);
+    size_t flagCount;
+    int *flags = labelFlags(argc, argv, charFlags, charLen, stringFlags, stringLen, &flagCount);
+
     if (flags != NULL) {
-        for (int i = 0; i < argc; i++) { // loops trough all args
-            // count flags
-            if (argv[i][0] == '-') {
-                totalFlags++;
-            }
+        for (int i = 0; i < flagCount; i++) {
+            if (flags[i] == 0) helpMenu();
 
-            // flags
-            if (flags[i] == 0) { // help
-                helpMenu();
-            }
-            if (flags[i] == 1) { // show dotfiles
-                dotFiles = 1;
-                continue;
-            }
-
+            if (flags[i] == 1) dotFiles = 1;
         }
     } else {
         printf("Invalid flag detected. See 'scan -h' or 'scan --help' for instructions.\n");
@@ -155,18 +151,17 @@ int main (int argc, char *argv[]) {
         closedir(dirStream);
 
     } else { // get dir user wants
-        int onlyFiles = 1;
-
         for (int i = argc - 1; i > 0; i--) { // print dirs user wants on reverse order
             if (argv[i][0] != '-') {
                 dirStream = opendir(argv[i]);
                 strcpy(dir, argv[i]);
 
                 if (dirStream == NULL && errno == ENOTDIR) {
-                    if (singleDir) {
-                        printf("'%s' is not a directory\n", argv[i]);
-                        return 1;
+                    char resolved[PATH_MAX];
+                    if (realpath(argv[i], resolved) != NULL) {
+                        printf("%s\n\n", resolved);
                     }
+
                     continue;
 
                 } else if (dirStream == NULL) {
@@ -177,20 +172,14 @@ int main (int argc, char *argv[]) {
                     continue;
                 }
 
-                onlyFiles = 0;
-
                 printDir(dirStream, dir);
                 if (!singleDir) {
-                    printf("\033[0m\n");
+                    printf("\n");
                 }
                 closedir(dirStream);
             }
         }
-
-        if (onlyFiles) {
-            printf("None of the files specified were a directory.\n");
-            return 1;
-        }
+        printf("\033[A");
     }
 
     return 0;
