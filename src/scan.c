@@ -211,6 +211,8 @@ int main (int argc, char *argv[]) {
         closedir(dirStream);
 
     } else { // get dir user wants
+        int onlyFail = 1;
+
         // first pass, print files
         int hadDir = 0;
         int hadFile = 0;
@@ -226,6 +228,7 @@ int main (int argc, char *argv[]) {
 
                     if (realpath(argv[i], resolved) != NULL) {
                         stat(resolved, &st);
+                        onlyFail = 0;
 
                         // executable
                         if (S_ISREG(st.st_mode) && (st.st_mode & (S_IXUSR | S_IXGRP | S_IXOTH))) {
@@ -286,6 +289,7 @@ int main (int argc, char *argv[]) {
                         continue;
                     }
 
+                    onlyFail = 0;
                     printDir(dirStream, dir);
                     if (!singleDir) {
                         printf("\n");
@@ -300,6 +304,11 @@ int main (int argc, char *argv[]) {
         } else if (hadFile && hadDir) {
             printf("\033[A");
         }
+
+        if (onlyFail) {
+            return 1;
+        }
+
     }
     return 0;
 }
