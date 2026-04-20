@@ -1,4 +1,5 @@
 #include <linux/limits.h>
+#include <stdlib.h>
 #include <sys/stat.h>
 #include <stdio.h>
 #include <dirent.h>
@@ -39,6 +40,34 @@ int cmpEntries(const void *a, const void *b) {
     return strcasecmp(((struct entry *)a)->name, ((struct entry *)b)->name);
 }
 
+void printFile (struct entry entry, char bar, char *currentDir) {
+    if (entry.name[0] == '.' && !dotFiles) {
+        return;
+    }
+    char resolved[PATH_MAX];
+    char fullPath[PATH_MAX];
+    snprintf(fullPath, sizeof(fullPath), "%s/%s", currentDir, entry.name);
+    if (realpath(fullPath, resolved) == NULL) {
+        return;
+    }
+    char *colorCode = determineColor(resolved) ? determineColor(resolved) : "0";
+
+    // we'll use this to check if executable
+    struct stat st;
+    stat(resolved, &st);
+
+    // executables
+    if (S_ISREG(st.st_mode) && (st.st_mode & (S_IXUSR | S_IXGRP | S_IXOTH)) && entry.type != DT_DIR) {
+        printf("\033[32;1m%s  \033[0m", entry.name);
+    // regular files
+    } else if (entry.type != DT_DIR) {
+        printf("\033[%sm%s  \033[0m", colorCode, entry.name);
+    // dirs
+    } else {
+        printf("\033[34;1m%s%c  \033[0m", entry.name, bar);
+    }
+}
+
 void printDir(DIR *dirStream, char *currentDir) {
     size_t dirFileCap = 64;
     size_t dirFileCount = 0;
@@ -50,8 +79,8 @@ void printDir(DIR *dirStream, char *currentDir) {
     // populate entries
     while ((currentFile = readdir(dirStream)) != NULL) {
 
-        if ((int)strlen(currentFile->d_name) > (int)largestWordSize) {
-            largestWordSize = (int)strlen(currentFile->d_name);
+        if (strlen(currentFile->d_name) > largestWordSize) {
+            largestWordSize = strlen(currentFile->d_name);
         }
 
         // increase the size of the dir's entries
@@ -70,71 +99,40 @@ void printDir(DIR *dirStream, char *currentDir) {
     qsort(entries, dirFileCount, sizeof(struct entry), cmpEntries);
 
     // say dir name
-    char *bar = useBar ? "/" : "";
+    char bar = useBar ? '/' : '\0';
     if (!singleDir) {
-        printf("%s%s:\n", currentDir, bar);
+        printf("%s%c:\n", currentDir, bar);
     }
 
     // get term size
     struct winsize dimensions;
     ioctl(STDOUT_FILENO, TIOCGWINSZ, &dimensions);
-    int count = 0;
+    //dimensions.ws_col = 4; // remove!
+    int cols = dimensions.ws_col / (largestWordSize + 2);
+    if (cols == 0) {
+        cols = 1;
+    }
+    int rows = (dirFileCount + cols - 1) / cols;
+
     // print
-    for (int i = 0; i < dirFileCount; i++) {
+    for (int row = 0; row < rows; row++) {
+        if (cols < 2) { // regular
+            for (int i = 0; i < dirFileCount; i++) {
+                printFile(entries[i], bar, currentDir);
+            }
+            printf("\n");
+            break;
 
-        // ignore dotfiles
-        if (entries[i].name[0] == '.' && !dotFiles) {
-            continue;
-        }
-
-        // see if it has spaces
-        char apostrophe = strchr(entries[i].name, ' ') ? 39 : '\0';
-
-        // see if we have to print a new line
-        count += strlen(entries[i].name) + 3;
-        if (entries[i].name[0] == '.' && !dotFiles) {
-            count -= strlen(entries[i].name) + 3;
-        }
-        if (count > dimensions.ws_col) {
-            count = 0;
+        } else { // columns
+            for (int col = 0; col < cols; col++) {
+                int i  = row + col * rows;
+                if (i < dirFileCount) {
+                    printFile(entries[i], bar, currentDir);
+                }
+            }
             printf("\n");
         }
-
-        // full path to file
-        char resolved[PATH_MAX];
-        char fullPath[PATH_MAX];
-        snprintf(fullPath, sizeof(fullPath), "%s/%s", currentDir, entries[i].name);
-        if (entries[i].type != DT_DIR && realpath(fullPath, resolved) == NULL) {
-            printf("Couldn't resolve realpath for file.\n");
-            exit(2);
-        }
-        char *colorCode = determineColor(resolved) ? determineColor(resolved) : "0";
-
-        // we'll use this to check if executable
-        struct stat st;
-        stat(resolved, &st);
-
-        // executable
-        if (S_ISREG(st.st_mode) && (st.st_mode & (S_IXUSR | S_IXGRP | S_IXOTH)) && entries[i].type != DT_DIR) {
-                char *executableColor = useColor ? "32;1" : "0";
-                printf("\033[%sm%c%s%c\033[0m  ", executableColor, apostrophe, entries[i].name, apostrophe);
-
-        // directory
-        } else if (entries[i].type == DT_DIR) {
-            char displayName[256];
-            char *color = useColor ? "34" : "0";
-            char *bar = useBar ? "%s/" : "%s";
-
-            snprintf(displayName, sizeof(displayName), bar, entries[i].name);
-            printf("\033[1m\033[%sm%c%s%c\033[0m  ", color, apostrophe, displayName, apostrophe);
-
-        // any other file
-        } else {
-            printf("\033[%sm%c%s%c\033[0m  ", colorCode, apostrophe, entries[i].name, apostrophe);
-        }
     }
-    printf("\n");
-
     // never forget!
     free(entries);
 }
