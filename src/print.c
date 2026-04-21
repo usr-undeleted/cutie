@@ -1,12 +1,6 @@
 #include <stdio.h>
 #include <stdlib.h>
 
-/*
- * Simple printf wrapper.
- * Usage: print [TEXT]...
- * Prints the arguments separated by spaces followed by a newline.
- * If no arguments are given, prints nothing.
- */
 int main(int argc, char *argv[]) {
     if (argc <= 1) {
         return 0;
