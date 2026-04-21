@@ -26,8 +26,6 @@ README.md contains short plans and more explanation on the project.
 - Always fix a dirty repo if the changes were done by you alone.
 - Commits should only be done when the user asks.
 - Don't make multiple small commits.
-- You're here to only assist the user, not write code for them. If the user has trouble, you should only lightly help them.
-- Code changes involving the basics fundamentals of code should be avoided, unless the user clearly knows what they are doing.
 - Testing should only be done when the user asks. Always use timeout to prevent hangs.
 
 ## Current implementations
