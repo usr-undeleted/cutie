@@ -40,32 +40,41 @@ int cmpEntries(const void *a, const void *b) {
     return strcasecmp(((struct entry *)a)->name, ((struct entry *)b)->name);
 }
 
-void printFile (struct entry entry, char bar, char *currentDir) {
+void printFile (struct entry entry, char *fullPath) {
     if (entry.name[0] == '.' && !dotFiles) {
         return;
     }
-    char resolved[PATH_MAX];
-    char fullPath[PATH_MAX];
-    snprintf(fullPath, sizeof(fullPath), "%s/%s", currentDir, entry.name);
-    if (realpath(fullPath, resolved) == NULL) {
-        return;
-    }
-    char *colorCode = determineColor(resolved) ? determineColor(resolved) : "0";
+
+    // are we gonna wrap this?
+    char apostrophe = strchr(entry.name, ' ') ? 39 : '\0';
+
+    char *colorCode;
+    char bar = '\0';
 
     // we'll use this to check if executable
     struct stat st;
-    stat(resolved, &st);
+    stat(fullPath, &st);
 
-    // executables
-    if (S_ISREG(st.st_mode) && (st.st_mode & (S_IXUSR | S_IXGRP | S_IXOTH)) && entry.type != DT_DIR) {
-        printf("\033[32;1m%s  \033[0m", entry.name);
-    // regular files
-    } else if (entry.type != DT_DIR) {
-        printf("\033[%sm%s  \033[0m", colorCode, entry.name);
-    // dirs
-    } else {
-        printf("\033[34;1m%s%c  \033[0m", entry.name, bar);
+    if (entry.type == DT_DIR) { // directory
+        colorCode = useColor ? "34;1" : "0";
+        bar = useBar ? '/' : '\0';
+
+    } else if (entry.type == DT_LNK) { // symlink
+        colorCode = useColor ? "36;1" : "0";
+
+    } else if (S_ISREG(st.st_mode)
+        && (st.st_mode & (S_IXUSR | S_IXGRP | S_IXOTH))
+        && entry.type != DT_DIR) { // executable
+            colorCode = useColor ? "32;1" : "0";
+
+    } else if (entry.type == DT_UNKNOWN || entry.type != DT_DIR) { // any other file
+        colorCode = determineColor(entry.name) ? determineColor(entry.name) : "0";
+
+    } else { // fallback
+        colorCode = "0";
     }
+
+    printf("\033[%sm%c%s%c%c  \033[0m", colorCode, apostrophe, entry.name, bar, apostrophe);
 }
 
 void printDir(DIR *dirStream, char *currentDir) {
@@ -103,11 +112,11 @@ void printDir(DIR *dirStream, char *currentDir) {
     if (!singleDir) {
         printf("%s%c:\n", currentDir, bar);
     }
+    char resolved[PATH_MAX];
 
     // get term size
     struct winsize dimensions;
     ioctl(STDOUT_FILENO, TIOCGWINSZ, &dimensions);
-    //dimensions.ws_col = 4; // remove!
     int cols = dimensions.ws_col / (largestWordSize + 2);
     if (cols == 0) {
         cols = 1;
@@ -118,7 +127,11 @@ void printDir(DIR *dirStream, char *currentDir) {
     for (int row = 0; row < rows; row++) {
         if (cols < 2) { // regular
             for (int i = 0; i < dirFileCount; i++) {
-                printFile(entries[i], bar, currentDir);
+                char fullPath[PATH_MAX];
+                snprintf(fullPath, sizeof(fullPath), "%s/%s", currentDir, entries[i].name);
+                realpath(fullPath, resolved);
+                printFile(entries[i], resolved);
+
             }
             printf("\n");
             break;
@@ -127,7 +140,14 @@ void printDir(DIR *dirStream, char *currentDir) {
             for (int col = 0; col < cols; col++) {
                 int i  = row + col * rows;
                 if (i < dirFileCount) {
-                    printFile(entries[i], bar, currentDir);
+                    if (entries[i].name[0] == '.' && !dotFiles) {
+                        continue;
+                    } else {
+                        char fullPath[PATH_MAX];
+                        snprintf(fullPath, sizeof(fullPath), "%s/%s", currentDir, entries[i].name);
+                        realpath(fullPath, resolved);
+                        printFile(entries[i], resolved);
+                    }
                 }
             }
             printf("\n");
@@ -208,53 +228,36 @@ int main (int argc, char *argv[]) {
 
     } else { // get dir user wants
         int onlyFail = 1;
-
-        // first pass, print files
         int hadDir = 0;
         int hadFile = 0;
+
+        // first pass, print files
         for (int i = 1; i < argc; i++) {
             if (argv[i][0] != '-') {
                 dirStream = opendir(argv[i]);
+                strcpy(dir, argv[i]);
 
                 if (dirStream == NULL && errno == ENOTDIR) {
+                    onlyFail = 0;
                     hadFile = 1;
+                    struct entry file = {
+                        argv[i],
+                        DT_REG
+                    };
+
                     char resolved[PATH_MAX];
-
-                    struct stat st;
-
-                    if (realpath(argv[i], resolved) != NULL) {
-                        stat(resolved, &st);
-                        onlyFail = 0;
-
-                        // executable
-                        if (S_ISREG(st.st_mode) && (st.st_mode & (S_IXUSR | S_IXGRP | S_IXOTH))) {
-                            char *colorCode = useColor ? "32;1" : "0";
-
-                            if (!singleDir) {
-                                printf("\033[%sm%s\033[0m ", colorCode, argv[i]);
-                            } else {
-                                printf("\033[%sm%s\033[0m", colorCode, argv[i]);
-                            }
-
-                        // regular file
-                        } else if (S_ISREG(st.st_mode)) {
-                            char *colorCode = determineColor(resolved) ? determineColor(resolved) : "0";
-
-                            if (!singleDir) {
-                                printf("\033[%sm%s\033[0m ", colorCode, argv[i]);
-                            } else {
-                                printf("\033[%sm%s\033[0m", colorCode, resolved);
-                            }
-                        }
-
-                    } else {
-                        perror("File couldn't be opened");
-                        return 1;
+                    if ((realpath(argv[i], resolved)) == NULL) {
+                        printf("Failed to get true path.\n");
+                        exit(2);
                     }
 
-                    continue;
+                    if (singleDir) {
+                        file.name = resolved;
+                    }
+                    printFile(file, resolved);
                 } else {
                     hadDir = 1;
+                    continue;
                 }
             }
         }
