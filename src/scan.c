@@ -1,5 +1,6 @@
 #include <linux/limits.h>
 #include <stdlib.h>
+#include <string.h>
 #include <sys/stat.h>
 #include <stdio.h>
 #include <dirent.h>
@@ -40,7 +41,7 @@ int cmpEntries(const void *a, const void *b) {
     return strcasecmp(((struct entry *)a)->name, ((struct entry *)b)->name);
 }
 
-void printFile (struct entry entry, char *fullPath) {
+void printFile (struct entry entry, char *fullPath, int spacing) {
     if (entry.name[0] == '.' && !dotFiles) {
         return;
     }
@@ -67,17 +68,26 @@ void printFile (struct entry entry, char *fullPath) {
         && entry.type != DT_DIR) { // executable
             colorCode = useColor ? "32;1" : "0";
 
+    } else if (entry.type == DT_CHR) { // character device
+        colorCode = useColor? "40;33;1" : "0";
+
     } else if (entry.type == DT_UNKNOWN || entry.type != DT_DIR) { // any other file
         colorCode = determineColor(entry.name) ? determineColor(entry.name) : "0";
 
     } else { // fallback
         colorCode = "0";
     }
-
-    printf("\033[%sm%c%s%c%c  \033[0m", colorCode, apostrophe, entry.name, bar, apostrophe);
+    // bar + apostrophes, color code
+    char printed[PATH_MAX + 3 + strlen(colorCode)];
+    if (apostrophe == '\0') {
+        snprintf(printed, sizeof(printed), "\033[%sm%s%c", colorCode, entry.name, bar);
+    } else {
+        snprintf(printed, sizeof(printed), "\033[%sm%c%s%c%c", colorCode, apostrophe, entry.name, apostrophe, bar);
+    }
+    printf("%-*s\033[0m  ", spacing, printed);
 }
 
-void printDir(DIR *dirStream, char *currentDir) {
+void printDir(DIR *dirStream, char *currentDir, struct winsize *dimensions) {
     size_t dirFileCap = 64;
     size_t dirFileCount = 0;
     size_t largestWordSize = 0;
@@ -114,23 +124,28 @@ void printDir(DIR *dirStream, char *currentDir) {
     }
     char resolved[PATH_MAX];
 
-    // get term size
-    struct winsize dimensions;
-    ioctl(STDOUT_FILENO, TIOCGWINSZ, &dimensions);
-    int cols = dimensions.ws_col / (largestWordSize + 2);
-    if (cols == 0) {
+    // get term size from the struct we have
+    int cols = dimensions->ws_col / (largestWordSize + 2);
+    // if it can all fit in a single line
+    int totalSize = 0;
+    for (int i = 0; i < dirFileCount; i++) {
+        if (entries[i].name[0] == '.' && !dotFiles) {
+            continue;
+        }
+        totalSize += strlen(entries[i].name) + 2 + useBar;
+    }
+
+    if (cols <= 0) {
         cols = 1;
     }
     int rows = (dirFileCount + cols - 1) / cols;
 
     // print
     for (int row = 0; row < rows; row++) {
-        if (cols < 2) { // regular
+        if (cols < 2 ) { // regular
             for (int i = 0; i < dirFileCount; i++) {
-                char fullPath[PATH_MAX];
-                snprintf(fullPath, sizeof(fullPath), "%s/%s", currentDir, entries[i].name);
-                realpath(fullPath, resolved);
-                printFile(entries[i], resolved);
+                snprintf(resolved, sizeof(resolved), "%s/%s", currentDir, entries[i].name);
+                printFile(entries[i], resolved, 2);
 
             }
             printf("\n");
@@ -143,10 +158,8 @@ void printDir(DIR *dirStream, char *currentDir) {
                     if (entries[i].name[0] == '.' && !dotFiles) {
                         continue;
                     } else {
-                        char fullPath[PATH_MAX];
-                        snprintf(fullPath, sizeof(fullPath), "%s/%s", currentDir, entries[i].name);
-                        realpath(fullPath, resolved);
-                        printFile(entries[i], resolved);
+                        snprintf(resolved, sizeof(resolved), "%s/%s", currentDir, entries[i].name);
+                        printFile(entries[i], resolved, largestWordSize + 2);
                     }
                 }
             }
@@ -161,6 +174,8 @@ void printDir(DIR *dirStream, char *currentDir) {
 int main (int argc, char *argv[]) {
     char dir[PATH_MAX];
     DIR *dirStream;
+    struct winsize dimensions;
+    ioctl(STDOUT_FILENO, TIOCGWINSZ, &dimensions);
 
     // exclude flags from total arg count
     int totalFlags = 0;
@@ -205,7 +220,7 @@ int main (int argc, char *argv[]) {
         }
     } else {
         printf("Invalid flag detected. See 'scan -h' or 'scan --help' for instructions.\n");
-        return 1;
+        return 2;
     }
     free(flags);
 
@@ -220,10 +235,10 @@ int main (int argc, char *argv[]) {
                // copied absolute cwd to dir
         } else {
                perror("Couldn't get absolute of current dir");
-               return 2;
+               return 1;
         }
 
-        printDir(dirStream, dir);
+        printDir(dirStream, dir, &dimensions);
         closedir(dirStream);
 
     } else { // get dir user wants
@@ -248,13 +263,13 @@ int main (int argc, char *argv[]) {
                     char resolved[PATH_MAX];
                     if ((realpath(argv[i], resolved)) == NULL) {
                         printf("Failed to get true path.\n");
-                        exit(2);
+                        exit(1);
                     }
 
                     if (singleDir) {
                         file.name = resolved;
                     }
-                    printFile(file, resolved);
+                    printFile(file, resolved, 1);
                 } else {
                     hadDir = 1;
                     continue;
@@ -283,13 +298,13 @@ int main (int argc, char *argv[]) {
                         printf("Directory '%s' couldn't be opened: %s\n\n", argv[i], strerror(errno));
                         if (singleDir) {
                             printf("\033[A");
-                            return 1;
+                            return 2;
                         }
                         continue;
                     }
 
                     onlyFail = 0;
-                    printDir(dirStream, dir);
+                    printDir(dirStream, dir, &dimensions);
                     if (!singleDir) {
                         printf("\n");
                     }
@@ -305,7 +320,7 @@ int main (int argc, char *argv[]) {
         }
 
         if (onlyFail) {
-            return 1;
+            return 2;
         }
 
     }
