@@ -27,6 +27,8 @@ README.md contains short plans and more explanation on the project.
 - Commits should only be done when the user asks.
 - Don't make multiple small commits.
 - Testing should only be done when the user asks. Always use timeout to prevent hangs.
+- You're here to only assist the user, not write code for them. If the user has trouble, you should only lightly help them.
+- Code changes involving the basics fundamentals of code should be avoided, unless the user clearly knows what they are doing.
 
 ## Current implementations
 ### scan
