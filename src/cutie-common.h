@@ -1,3 +1,4 @@
+#include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 #include <sys/ioctl.h>
@@ -39,6 +40,10 @@ int *labelFlags(int argc, char *argv[], struct flagInput *input) {
     }
 
     int *returned = (int*)malloc(size * sizeof(int));
+    if (returned == NULL) {
+        printf("Failed to get flags; failed malloc.\n");
+        exit(2);
+    }
     int index = 0;
 
     for (int i = 0; i < argc; i++) {
@@ -81,42 +86,61 @@ int *labelFlags(int argc, char *argv[], struct flagInput *input) {
 // return color depending on file extension
 // return null on fail, caller should see
 // null and use their own fallback
-//
+
 // use color or not
-int useColor = 0;
+unsigned int useColor = 0;
+// contains lscolors, determined by caller
+char *colors;
+
 char *determineColor(const char *filename) {
-    if (!useColor) {
+    if (!useColor || !colors) {
         return NULL;
     }
-
-    char *lsColors = getenv("LS_COLORS"); // NEVER use this
-    if (!lsColors) {
-        return NULL;
-    }
-
     const char *extension = strrchr(filename, '.');
     if (!extension) {
         return NULL;
     }
 
-    char *colors = strdup(lsColors);
-    char *token = strtok(colors, ":");
-    char *colorCode = NULL;
+    size_t start, end;
+    unsigned int hadMatch = 0;
 
-    while (token != NULL) {
-        if (token[0] == '*' && strncmp(token + 1, extension, strlen(extension)) == 0) {
-            colorCode = strchr(token, '=');
-            if (colorCode) {
-                colorCode++;
+    // set the start and end
+    for (int i = 0; i < strlen(colors); i++) {
+        if (!strncmp(colors + i, extension, strlen(extension))) {
+            // we have a match
+            hadMatch = 1;
+            start = i;
+            end = start;
+        }
+
+        if (hadMatch) {
+            // shift start
+            if (colors[i] == '=') {
+                start = i + 1;
+            }
+
+            // stop the search
+            if (colors[i] != ':') {
+                end++;
+            } else {
                 break;
             }
         }
-        token = strtok(NULL, ":");
     }
 
-    free(colors);
-    if (colorCode) {
-        return colorCode;
+    // resolved is the color code
+    char *resolved = (char*)malloc(end - start + 1);
+    if (resolved == NULL) {
+        printf("Color couldn't be determined; failed malloc.\n");
+        exit(2);
+    }
+    resolved[end - start] = '\0';
+    for (size_t i = 0; i < (end - start); i++) {
+        resolved[i] = colors[i + start];
+    }
+
+    if (resolved) {
+        return resolved;
     } else {
         return NULL;
     }

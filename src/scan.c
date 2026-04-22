@@ -1,3 +1,4 @@
+#include <asm-generic/errno-base.h>
 #include <linux/limits.h>
 #include <stdlib.h>
 #include <string.h>
@@ -14,7 +15,6 @@ int singleDir = 0;
 int dotFiles = 0;
 // use a '/' after a dir or not
 int useBar = 0;
-// color var located in cutie-common.h
 
 void helpMenu() {
     printf("scan command basic usage:\n"
@@ -48,14 +48,18 @@ void printFile (struct entry entry, char *fullPath, int spacing) {
 
     // are we gonna wrap this?
     char apostrophe = strchr(entry.name, ' ') ? 39 : '\0';
-
+    // toggles
     char *colorCode;
     char bar = '\0';
-
-    // we'll use this to check if executable
     struct stat st;
-    stat(fullPath, &st);
+    if ((lstat(fullPath, &st)) == -1) {
+        printf("Failed to get stats on file: stat() failed.\n");
+        exit(2);
+    }
+    char printed[PATH_MAX + 10];
 
+    unsigned int wasNormal = 0;
+    char *color;
     if (entry.type == DT_DIR) { // directory
         colorCode = useColor ? "34;1" : "0";
         bar = useBar ? '/' : '\0';
@@ -68,23 +72,31 @@ void printFile (struct entry entry, char *fullPath, int spacing) {
         && entry.type != DT_DIR) { // executable
             colorCode = useColor ? "32;1" : "0";
 
-    } else if (entry.type == DT_CHR) { // character device
-        colorCode = useColor? "40;33;1" : "0";
+    } else if (entry.type == DT_BLK || entry.type == DT_CHR) { // block or char device
+        colorCode = useColor ? "40;33;1" : "0";
 
-    } else if (entry.type == DT_UNKNOWN || entry.type != DT_DIR) { // any other file
-        colorCode = determineColor(entry.name) ? determineColor(entry.name) : "0";
+    } else if (entry.type == DT_SOCK) { // socket
+        colorCode = useColor ? "0;35" : "0";
+
+    } else if (entry.type == DT_FIFO) { // pipe
+        colorCode = useColor ? "0;33" : "0";
+
+    } else if (entry.type == DT_UNKNOWN || entry.type == DT_REG) { // any other file
+        color = useColor ? determineColor(entry.name) : NULL;
+        wasNormal = 1;
+        colorCode = color ? color : "0";
 
     } else { // fallback
         colorCode = "0";
     }
     // bar + apostrophes, color code
-    char printed[PATH_MAX + 3 + strlen(colorCode)];
     if (apostrophe == '\0') {
         snprintf(printed, sizeof(printed), "\033[%sm%s%c", colorCode, entry.name, bar);
     } else {
         snprintf(printed, sizeof(printed), "\033[%sm%c%s%c%c", colorCode, apostrophe, entry.name, apostrophe, bar);
     }
     printf("%-*s\033[0m  ", spacing, printed);
+    if (wasNormal) free(color);
 }
 
 void printDir(DIR *dirStream, char *currentDir, struct winsize *dimensions) {
@@ -94,6 +106,10 @@ void printDir(DIR *dirStream, char *currentDir, struct winsize *dimensions) {
     struct dirent *currentFile;
 
     struct entry *entries = malloc(dirFileCap * sizeof(*entries));
+    if (entries == NULL) {
+        printf("Failed to get files; failed malloc.\n");
+        exit(2);
+    }
 
     // populate entries
     while ((currentFile = readdir(dirStream)) != NULL) {
@@ -106,9 +122,13 @@ void printDir(DIR *dirStream, char *currentDir, struct winsize *dimensions) {
         if (dirFileCount >= dirFileCap) {
             dirFileCap *= 2;
             entries = realloc(entries, dirFileCap * sizeof(*entries));
+            if (entries == NULL) {
+                printf("Failed to get files; failed malloc.\n");
+                exit(2);
+            }
         }
 
-        entries[dirFileCount].name = currentFile->d_name;
+        entries[dirFileCount].name = strdup(currentFile->d_name);
         entries[dirFileCount].type = currentFile->d_type;
 
         dirFileCount++;
@@ -142,11 +162,10 @@ void printDir(DIR *dirStream, char *currentDir, struct winsize *dimensions) {
 
     // print
     for (int row = 0; row < rows; row++) {
-        if (cols < 2 ) { // regular
+        if (largestWordSize > dimensions->ws_col) { // regular
             for (int i = 0; i < dirFileCount; i++) {
                 snprintf(resolved, sizeof(resolved), "%s/%s", currentDir, entries[i].name);
                 printFile(entries[i], resolved, 2);
-
             }
             printf("\n");
             break;
@@ -176,6 +195,13 @@ int main (int argc, char *argv[]) {
     DIR *dirStream;
     struct winsize dimensions;
     ioctl(STDOUT_FILENO, TIOCGWINSZ, &dimensions);
+    // used by determineColor
+    const char *lsColors = getenv("LS_COLORS");
+    if (lsColors) {
+        colors = strdup(lsColors);
+    } else {
+        colors = NULL;
+    }
 
     // exclude flags from total arg count
     int totalFlags = 0;
@@ -255,16 +281,27 @@ int main (int argc, char *argv[]) {
                 if (dirStream == NULL && errno == ENOTDIR) {
                     onlyFail = 0;
                     hadFile = 1;
-                    struct entry file = {
-                        argv[i],
-                        DT_REG
-                    };
-
                     char resolved[PATH_MAX];
                     if ((realpath(argv[i], resolved)) == NULL) {
                         printf("Failed to get true path.\n");
-                        exit(1);
+                        exit(2);
                     }
+
+                    struct stat st;
+                    if ((stat(resolved, &st)) == -1) {
+                        printf("Failed to get stats on file: stat() failed.\n");
+                        if (!singleDir) {
+                            continue;
+                        } else {
+                            exit(2);
+                        }
+                    }
+                    unsigned char type = IFTODT(st.st_mode);
+
+                    struct entry file = {
+                        argv[i],
+                        type
+                    };
 
                     if (singleDir) {
                         file.name = resolved;
@@ -294,8 +331,17 @@ int main (int argc, char *argv[]) {
                         if (errno == ENOTDIR) {
                             continue;
                         }
+                        if (errno == ENOENT) {
+                            printf("Link '%s' coudln't be opened: %s\n\n", argv[i], strerror(errno));
+                            if (!singleDir) {
+                                continue;
+                            } else {
+                                printf("\033[A");
+                                return 2;
+                            }
+                        }
 
-                        printf("Directory '%s' couldn't be opened: %s\n\n", argv[i], strerror(errno));
+                        printf("Directory or file '%s' couldn't be opened: %s\n\n", argv[i], strerror(errno));
                         if (singleDir) {
                             printf("\033[A");
                             return 2;
@@ -324,5 +370,6 @@ int main (int argc, char *argv[]) {
         }
 
     }
+    free(colors);
     return 0;
 }
