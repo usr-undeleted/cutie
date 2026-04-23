@@ -4,7 +4,6 @@
 </p>
 
 <p align="center">
-  <img src="https://img.shields.io/badge/ISO_C17-built_in_C-blue?logo=c">
   <img src="https://img.shields.io/badge/license-GPLv3-blue">
 </p>
 
