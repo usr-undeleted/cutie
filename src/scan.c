@@ -21,17 +21,19 @@ unsigned int useBar = 0;
 // list or not
 unsigned int fullList = 0;
 
-void helpMenu() {
-    printf("scan command basic usage:\n"
-        "   scan <flags> <dirs>\n"
-        "scan will search trough all directories you specify.\n"
+void helpMenu(char *invocation) {
+    printf("\e[1m%s\e[0m command basic usage:\n"
+        "   \e[1m%s\e[0m <flags> <dirs>\n"
+        "   \e[3;2mnote that the order of flags and dirs dont matter.\e[0m\n"
+        "\e[1m%s\e[0m will search trough all directories you specify.\n\n"
         "flags:\n"
-        "   -h or --help: show this menu.\n"
-        "   -a or --all: show all files, as, by default, scan hides dotfiles.\n"
-        "   -c or --color: toggle color.\n"
-        "   -b or --bar: toggle the use of a '/' after directories.\n"
-        "   -l or --list: show extra info on all files.\n\n"
-        "scan is part of the cutie project hosted under https://github.com/usr-undeleted/cutie licensed under the GPLv3 license.\n"
+        "   \e[1m-h\e[0m or \e[1m--help\e[0m: show this menu.\n"
+        "   \e[1m-a\e[0m or \e[1m--all\e[0m: show all files, as, by default, \e[1m%s\e[0m hides dotfiles.\n"
+        "   \e[1m-c\e[0m or \e[1m--color\e[0m: toggle color.\n"
+        "   \e[1m-b\e[0m or \e[1m--bar\e[0m: toggle the use of a '/' after directories.\n"
+        "   \e[1m-l\e[0m or \e[1m--list\e[0m: show extra info on all files.\n\n"
+        "\e[2;3m%s is part of the cutie project hosted under https://github.com/usr-undeleted/cutie licensed under the GPLv3 license.\e[0m\n",
+        invocation, invocation, invocation, invocation, invocation
     );
     exit(0);
 }
@@ -95,15 +97,15 @@ void printFile (struct entry entry, char *fullPath, int spacing, struct stat *st
     }
 
     char printed[PATH_MAX + 10];
-    unsigned int needsFree = 0;
-    char *colorCode = determineColor(entry, st, &needsFree);
+    size_t colorLen;
+    char *colorCode = determineColor(entry, st, &colorLen);
     if (!colorCode) colorCode = "0";
 
     // bar + apostrophes, color code
     if (apostrophe == '\0') {
-        snprintf(printed, sizeof(printed), "\033[%sm%s%c", colorCode, entry.name, bar);
+        snprintf(printed, sizeof(printed), "\033[%.*sm%s%c", (int)colorLen, colorCode, entry.name, bar);
     } else {
-        snprintf(printed, sizeof(printed), "\033[%sm%c%s%c%c", colorCode, apostrophe, entry.name, apostrophe, bar);
+        snprintf(printed, sizeof(printed), "\033[%.*sm%c%s%c%c", (int)colorLen, colorCode, apostrophe, entry.name, apostrophe, bar);
     }
     if (fullList) {
         printf("%s %*zu %-*s %-*s %*zu %s %s\e[0m\n",
@@ -115,8 +117,6 @@ void printFile (struct entry entry, char *fullPath, int spacing, struct stat *st
     } else {
         printf("%-*s\033[0m  ", spacing, printed);
     }
-
-    if (needsFree) free(colorCode);
 }
 
 void printDir(DIR *dirStream, char *currentDir, struct winsize *dimensions) {
@@ -267,7 +267,7 @@ void printDir(DIR *dirStream, char *currentDir, struct winsize *dimensions) {
     for (int j = 0; j < rows; j++) {
         for (int i = 0; i < c; i++) {
             int idx = i * rows + j;
-            int realIdx;
+            int realIdx = 0;
             if (idx < visibleN) {
                 realIdx = visible[idx];
                 int len = strlen(entries[realIdx].name);
@@ -276,14 +276,14 @@ void printDir(DIR *dirStream, char *currentDir, struct winsize *dimensions) {
                 if (len > colWidth[i]) colWidth[i] = len;
             }
 
-            if (realIdx >= 0) {
+            if (idx < visibleN) {
                 snprintf(resolved, sizeof(resolved), "%s/%s", currentDir, entries[realIdx].name);
                 struct stat st;
 
                 if (lstat(resolved, &st) == 0) {
-                    unsigned int needsFree;
+                    size_t colorLen;
 
-                    char *colorCode = determineColor(entries[realIdx], &st, &needsFree);
+                    char *colorCode = determineColor(entries[realIdx], &st, &colorLen);
                     if (!colorCode) colorCode = "0";
 
                     char bar = useBar && entries[realIdx].type == DT_DIR ? '/' : '\0';
@@ -293,10 +293,8 @@ void printDir(DIR *dirStream, char *currentDir, struct winsize *dimensions) {
                     } else {
                         snprintf(displayName, sizeof(displayName), "%s", entries[realIdx].name);
                     }
-                    printf("\033[%sm%s\033[0m%-*s", colorCode, displayName,
+                    printf("\033[%.*sm%s\033[0m%-*s", (int)colorLen, colorCode, displayName,
                         (int)(colWidth[i] - strlen(displayName)), "");
-
-                    if (needsFree) free(colorCode);
                 }
             } else if (i < c - 1) {
                 printf("%-*s", (int)colWidth[i], "");
@@ -321,12 +319,7 @@ int main (int argc, char *argv[]) {
     struct winsize dimensions;
     ioctl(STDOUT_FILENO, TIOCGWINSZ, &dimensions);
     // used by determineColor
-    const char *lsColors = getenv("LS_COLORS");
-    if (lsColors) {
-        colors = strdup(lsColors);
-    } else {
-        colors = NULL;
-    }
+    lsColors = getenv("LS_COLORS");
 
     // exclude flags from total arg count
     int totalFlags = 0;
@@ -363,7 +356,7 @@ int main (int argc, char *argv[]) {
 
     if (flags != NULL) {
         for (int i = 0; i < input.flagCount; i++) {
-            if (flags[i] == 0) helpMenu();
+            if (flags[i] == 0) helpMenu(argv[0]);
 
             if (flags[i] == 1) dotFiles = 1;
 
@@ -378,6 +371,45 @@ int main (int argc, char *argv[]) {
         return 2;
     }
     free(flags);
+    if (useColor) {
+        // populate offsets
+        size_t len = strlen(lsColors);
+        parsedColorCount = 0;
+        for (int i = 0; i < len; i++) {
+            if (lsColors[i] == '*') {
+                parsedColorCount++;
+                void *tmp = realloc(parsedColors, parsedColorCount * sizeof(struct colorEntry));
+                if (tmp == NULL) {
+                    printf("Failed to get files; failed malloc.\n");
+                    exit(2);
+                }
+                parsedColors = tmp;
+
+                // starts at dot
+                size_t tmpExtStart = i + 1;
+                // ends at =, exclusive
+                size_t tmpExtEnd = 0;
+                // starts after =
+                size_t tmpClrStart = 0;
+                // is at :, exclusive
+                size_t tmpClrEnd = 0;
+                for (int j = i; lsColors[j] != ':'; j++) {
+                    if (lsColors[j] == '=') {
+                        tmpExtEnd = j;
+                        tmpClrStart = j + 1;
+                    }
+                    if (lsColors[j + 1] == ':' || lsColors[j + 1] == '\0') {
+                        tmpClrEnd = j + 1;
+                    }
+                }
+
+                parsedColors[parsedColorCount - 1].extStart = tmpExtStart;
+                parsedColors[parsedColorCount - 1].extEnd = tmpExtEnd;
+                parsedColors[parsedColorCount - 1].colorStart = tmpClrStart;
+                parsedColors[parsedColorCount - 1].colorEnd = tmpClrEnd;
+            }
+        }
+    }
 
     if ((argc - totalFlags) < 3) {
         singleDir = 1;
@@ -510,6 +542,6 @@ int main (int argc, char *argv[]) {
         }
 
     }
-    free(colors);
+    free(parsedColors);
     return 0;
 }

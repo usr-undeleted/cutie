@@ -91,109 +91,82 @@ int *labelFlags(int argc, char *argv[], struct flagInput *input) {
     return returned;
 }
 
-// return color depending on file extension
-// return null on fail, caller should see
-// null and use their own fallback
-
+// returns "0" on fallbacks and fails
+// finds the proper color for the file type
+// edits colorLen to tell the caller when to
+// stop printing, returns the offset of lsColors
+//
 // use color or not
 unsigned int useColor = 0;
-// contains lscolors, determined by caller
-char *colors;
+// contains offsets and limits for strings on
+// lsColors, indicating the extension and its
+// color code
+struct colorEntry {
+    size_t extStart;
+    size_t extEnd;
+    size_t colorStart;
+    size_t colorEnd;
+};
+struct colorEntry *parsedColors;
+size_t parsedColorCount;
+const char *lsColors;
 
-char *determineColor(struct entry entry, struct stat *st, unsigned int *needsFree) {
-    if (!useColor || !colors || st == NULL) {
-        *needsFree = 0;
+char *determineColor(struct entry entry, struct stat *st, size_t *colorLen) {
+    *colorLen = 1;
+    if (!useColor || !lsColors || st == NULL) {
         return "0";
     }
-    const char *extension = strrchr(entry.name, '.');
 
     size_t start, end;
     unsigned int hadMatch = 0;
 
     if (entry.type == DT_DIR) {
-        *needsFree = 0;
+        *colorLen = 4;
         return "34;1";
 
     } else if (entry.type == DT_LNK) {
-        *needsFree = 0;
+        *colorLen = 4;
         return "36;1";
 
     } else if (S_ISREG(st->st_mode)
         && (st->st_mode & (S_IXUSR | S_IXGRP | S_IXOTH))
         && entry.type != DT_DIR) {
-        *needsFree = 0;
+            *colorLen = 4;
         return "32;1";
 
     } else if (entry.type == DT_BLK || entry.type == DT_CHR) {
-        *needsFree = 0;
+        *colorLen = 7;
         return "40;33;1";
 
     } else if (entry.type == DT_SOCK) {
-        *needsFree = 0;
+        *colorLen = 4;
         return "0;35";
 
     } else if (entry.type == DT_FIFO) {
-        *needsFree = 0;
+        *colorLen = 4;
         return "0;33";
 
     } else if (entry.type == DT_UNKNOWN || entry.type == DT_REG) {
+        const char *extension = strrchr(entry.name, '.');
         if (!extension) {
-            *needsFree = 0;
             return "0";
         }
 
-        for (int i = 0; i < strlen(colors); i++) {
-            if (!strncmp(colors + i, extension, strlen(extension))) {
-                // we have a match
-                hadMatch = 1;
-                start = i;
-                end = start;
-            }
-
-            if (hadMatch) {
-                // shift start
-                if (colors[i] == '=') {
-                    start = i + 1;
-                }
-
-                // stop the search
-                if (colors[i] != ':') {
-                    end++;
-                } else {
-                    break;
-                }
+        // find the proper entry in the caller-made
+        // colorEntry array
+        for (size_t i = 0; i < parsedColorCount; i++) {
+            // find matching extension
+            if (!strncmp(extension, lsColors + parsedColors[i].extStart, parsedColors[i].extEnd - parsedColors[i].extStart)) {
+                *colorLen = parsedColors[i].colorEnd - parsedColors[i].colorStart;
+                return (char *)lsColors + parsedColors[i].colorStart;
             }
         }
-
-        // resolved is the color code
-        char *resolved;
-        if (hadMatch) {
-            resolved = (char*)malloc(end - start + 1);
-            if (resolved == NULL) {
-                printf("Color couldn't be determined; failed malloc.\n");
-                exit(2);
-            }
-
-        } else {
-            *needsFree = 0;
-            return "0";
-        }
-        resolved[end - start] = '\0';
-        for (size_t i = 0; i < (end - start); i++) {
-            resolved[i] = colors[i + start];
-        }
-
-        if (resolved) {
-            *needsFree = 1;
-            return resolved;
-        } else {
-            *needsFree = 0;
-            return "0";
-        }
+        // if theres no match
+        return "0";
 
     } else {
         // fallback
-        *needsFree = 0;
+        *colorLen = 1;
         return "0";
     }
 }
