@@ -1,3 +1,4 @@
+#include <linux/limits.h>
 #include <dirent.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -7,7 +8,7 @@
 
 // will contain a whole directory
 struct entry {
-    char *name;
+    char name[NAME_MAX + 1];
     unsigned char type; // DT_DIR, DT_REG, etc
 };
 

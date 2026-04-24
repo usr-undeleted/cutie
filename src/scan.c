@@ -1,9 +1,6 @@
 #include <asm-generic/errno-base.h>
-#include <linux/limits.h>
 #include <pwd.h>
 #include <grp.h>
-#include <string.h>
-#include <sys/stat.h>
 #include <time.h>
 #include <errno.h>
 #include <unistd.h>
@@ -122,17 +119,6 @@ void printFile (struct entry entry, char *fullPath, int spacing, struct stat *st
     if (needsFree) free(colorCode);
 }
 
-// well use this to ignore dotfiles
-int getVisibleIdx(struct entry *entries, int count, int visibleIdx) {
-    int seen = 0;
-    for (int i = 0; i < count; i++) {
-        if (entries[i].name[0] == '.' && !dotFiles) continue;
-        if (seen == visibleIdx) return i;
-        seen++;
-    }
-    return -1;
-}
-
 void printDir(DIR *dirStream, char *currentDir, struct winsize *dimensions) {
     size_t dirFileCap = 64;
     size_t dirFileCount = 0;
@@ -162,7 +148,7 @@ void printDir(DIR *dirStream, char *currentDir, struct winsize *dimensions) {
             }
         }
 
-        entries[dirFileCount].name = strdup(currentFile->d_name);
+        strcpy(entries[dirFileCount].name, currentFile->d_name);
         entries[dirFileCount].type = currentFile->d_type;
 
         dirFileCount++;
@@ -223,13 +209,9 @@ void printDir(DIR *dirStream, char *currentDir, struct winsize *dimensions) {
             printFile(entries[i], resolved, 0, &st);
         }
         // never forget!
-        for (int i = 0; i < dirFileCount; i++) free(entries[i].name);
         free(entries);
         return;
     }
-
-    // print stuff in columns
-    // print with no formatting
 
     int n = dirFileCount;
     // if we dont want dotfiles
@@ -245,6 +227,13 @@ void printDir(DIR *dirStream, char *currentDir, struct winsize *dimensions) {
     size_t colWidth[n];
     // candidate for column size
     int c;
+    // do we hide files?
+    int visible[dirFileCount];
+    int visibleN = 0;
+    for (int i = 0; i < dirFileCount; i++) {
+        if (entries[i].name[0] == '.' && !dotFiles) continue;
+        visible[visibleN++] = i;
+    }
 
     // get column size
     for (c = n; c >= 1; c--) {
@@ -256,10 +245,10 @@ void printDir(DIR *dirStream, char *currentDir, struct winsize *dimensions) {
 
             for (int j = 0; j < rows; j++) {
                 int idx = i * rows + j;
-                // map visible index to actual entries[] index
-                int realIdx = getVisibleIdx(entries, dirFileCount, idx);
-                if (realIdx >= 0) {
+                if (idx < visibleN) {
+                    int realIdx = visible[idx];
                     int len = strlen(entries[realIdx].name);
+
                     if (useBar && entries[realIdx].type == DT_DIR) len++;
                     if (len > colWidth[i]) colWidth[i] = len;
                 }
@@ -278,7 +267,14 @@ void printDir(DIR *dirStream, char *currentDir, struct winsize *dimensions) {
     for (int j = 0; j < rows; j++) {
         for (int i = 0; i < c; i++) {
             int idx = i * rows + j;
-            int realIdx = getVisibleIdx(entries, dirFileCount, idx);
+            int realIdx;
+            if (idx < visibleN) {
+                realIdx = visible[idx];
+                int len = strlen(entries[realIdx].name);
+
+                if (useBar && entries[realIdx].type == DT_DIR) len++;
+                if (len > colWidth[i]) colWidth[i] = len;
+            }
 
             if (realIdx >= 0) {
                 snprintf(resolved, sizeof(resolved), "%s/%s", currentDir, entries[realIdx].name);
@@ -315,7 +311,6 @@ void printDir(DIR *dirStream, char *currentDir, struct winsize *dimensions) {
     }
 
     // never forget!
-    for (int i = 0; i < dirFileCount; i++) free(entries[i].name);
     free(entries);
 }
 
@@ -432,13 +427,14 @@ int main (int argc, char *argv[]) {
                     }
                     unsigned char type = IFTODT(st.st_mode);
 
-                    struct entry file = {
-                        argv[i],
-                        type
-                    };
+                    struct entry file;
+                    strncpy(file.name, argv[i], NAME_MAX);
+                    file.name[NAME_MAX] = '\0';
+                    file.type = type;
 
                     if (singleDir) {
-                        file.name = resolved;
+                        strncpy(file.name, resolved, NAME_MAX);
+                        file.name[NAME_MAX] = '\0';
                     }
                     printFile(file, resolved, 1, &st);
                 } else {
@@ -471,7 +467,7 @@ int main (int argc, char *argv[]) {
                             continue;
                         }
                         if (errno == ENOENT) {
-                            printf("Link '%s' coudln't be opened: %s\n\n", argv[i], strerror(errno));
+                            printf("Directory '%s' coudln't be opened: %s\n\n", argv[i], strerror(errno));
                             if (!singleDir) {
                                 continue;
                             } else {
