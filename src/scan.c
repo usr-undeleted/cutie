@@ -1,6 +1,11 @@
 #include <asm-generic/errno-base.h>
+#include <dirent.h>
+#include <linux/limits.h>
 #include <pwd.h>
 #include <grp.h>
+#include <stdio.h>
+#include <string.h>
+#include <sys/stat.h>
 #include <time.h>
 #include <errno.h>
 #include <unistd.h>
@@ -20,6 +25,8 @@ unsigned int dotFiles = 0;
 unsigned int useBar = 0;
 // list or not
 unsigned int fullList = 0;
+// immediately open directories, if found
+unsigned int beRecursive = 0;
 
 void helpMenu(char *invocation) {
     printf("\e[1m%s\e[0m command basic usage:\n"
@@ -31,7 +38,8 @@ void helpMenu(char *invocation) {
         "   \e[1m-a\e[0m or \e[1m--all\e[0m: show all files, as, by default, \e[1m%s\e[0m hides dotfiles.\n"
         "   \e[1m-c\e[0m or \e[1m--color\e[0m: toggle color.\n"
         "   \e[1m-b\e[0m or \e[1m--bar\e[0m: toggle the use of a '/' after directories.\n"
-        "   \e[1m-l\e[0m or \e[1m--list\e[0m: show extra info on all files.\n\n"
+        "   \e[1m-l\e[0m or \e[1m--list\e[0m: show extra info on all files, showing permissions, links, owner, group, size and date of last edit.\n"
+        "   \e[1m-r\e[0m or \e[1m--recursive\e[0m: whenever found, immediately open a folder and check its contents.\n\n"
         "\e[2;3m%s is part of the cutie project hosted under https://github.com/usr-undeleted/cutie licensed under the GPLv3 license.\e[0m\n",
         invocation, invocation, invocation, invocation, invocation
     );
@@ -115,7 +123,28 @@ void printFile (struct entry entry, char *fullPath, int spacing, struct stat *st
             (int)sizeLargest, size,
             ftime, printed);
     } else {
-        printf("%-*s\033[0m  ", spacing, printed);
+        if (!beRecursive) {
+            printf("%-*s\033[0m  ", spacing, printed);
+        } else {
+            // find where we should stop printing the full path
+            // used to print everything but the file blue
+            size_t nameStart;
+            for (int i = 0; i < strlen(fullPath); i++) {
+                if (fullPath[i] == '/') {
+                    if (!strcmp(fullPath + (i + 1), entry.name)) {
+                        nameStart = i + 1;
+                        break;
+                    }
+                }
+            }
+            if (useColor) printf("\e[34;1m");
+            printf("%.*s", (int)nameStart, fullPath);
+            // then we print file
+            printf("%s", printed);
+            // do we need to print a bar?
+            if (useBar && entry.type == DT_DIR) putchar('/');
+            printf("\033[0m\n");
+        }
     }
 }
 
@@ -312,6 +341,40 @@ void printDir(DIR *dirStream, char *currentDir, struct winsize *dimensions) {
     free(entries);
 }
 
+// take a directory, scan EVERYTHING In it
+void scanRecursive (char *currentPath) {
+    DIR *dirstream = opendir(currentPath);
+    if (!dirstream) return;
+    struct dirent *currentFile;
+
+    while ((currentFile = readdir(dirstream)) != NULL) {
+        // always hide '.' or '..'
+        if (!strcmp(currentFile->d_name, ".") || !strcmp(currentFile->d_name, "..")) continue;
+        if (currentFile->d_name[0] == '.' && !dotFiles) continue;
+
+        char fullPath[PATH_MAX];
+        if (currentPath[strlen(currentPath) - 1] == '/') {
+            snprintf(fullPath, sizeof(fullPath), "%s%s", currentPath, currentFile->d_name);
+        } else {
+            snprintf(fullPath, sizeof(fullPath), "%s/%s", currentPath, currentFile->d_name);
+        }
+
+        struct stat st;
+        lstat(fullPath, &st);
+
+        struct entry fileEntry;
+        strcpy(fileEntry.name, currentFile->d_name);
+        fileEntry.type = currentFile->d_type;
+
+        if (fileEntry.type != DT_DIR) {
+            printFile(fileEntry, fullPath, 0, &st);
+        } else {
+            printFile(fileEntry, fullPath, 0, &st);
+            scanRecursive(fullPath);
+        }
+    }
+}
+
 // call funcs to do work, handle errors
 int main (int argc, char *argv[]) {
     char dir[PATH_MAX];
@@ -335,14 +398,16 @@ int main (int argc, char *argv[]) {
         'a',
         'c',
         'b',
-        'l'
+        'l',
+        'r'
     };
     char *stringFlags[] = {
         "--help",
         "--all",
         "--color",
         "--bar",
-        "--list"
+        "--list",
+        "--recursive"
     };
     int charLen = sizeof(charFlags) / sizeof(charFlags[0]);
     int stringLen = sizeof(stringFlags) / sizeof(stringFlags[0]);
@@ -365,11 +430,22 @@ int main (int argc, char *argv[]) {
             if (flags[i] == 3) useBar = 1;
 
             if (flags[i] == 4) fullList = 1;
+
+            if (flags[i] == 5) beRecursive = 1;
         }
     } else {
         printf("Invalid flag detected. See 'scan -h' or 'scan --help' for instructions.\n");
         return 2;
     }
+
+    if (beRecursive) {
+        for (int i = 1; i < argc; i++) {
+            scanRecursive(argv[i]);
+        }
+
+        return 0;
+    }
+
     free(flags);
     if (useColor) {
         // populate offsets
@@ -518,7 +594,7 @@ int main (int argc, char *argv[]) {
 
                     onlyFail = 0;
                     printDir(dirStream, dir, &dimensions);
-                    if (!singleDir) {
+                    if (!singleDir && !beRecursive) {
                         printf("\n");
                     }
                     closedir(dirStream);
