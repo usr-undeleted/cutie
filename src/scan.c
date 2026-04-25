@@ -336,7 +336,7 @@ void printDir(DIR *dirStream, char *currentDir, struct winsize *dimensions) {
                         hasSpace ? "'" : "", entries[realIdx].name, hasSpace ? "'" : "", bar);
 
                     printf("\033[%.*sm%s\033[0m%-*s", (int)colorLen, colorCode, displayName,
-                        (int)(colWidth[i] - strlen(displayName)) + (useBar ? 1 : 0), "");
+                        (int)(colWidth[i] - strlen(displayName)) + (bar ? 1 : 0), "");
                 }
             } else if (i < c - 1) {
                 printf("%-*s", (int)colWidth[i], "");
