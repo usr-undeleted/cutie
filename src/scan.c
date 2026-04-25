@@ -203,12 +203,6 @@ void printDir(DIR *dirStream, char *currentDir, struct winsize *dimensions) {
     // sort alphabeticallly
     qsort(entries, dirFileCount, sizeof(struct entry), cmpEntries);
 
-    // say dir name
-    char bar = useBar ? '/' : '\0';
-    if (!singleDir && !fullList) {
-        printf("%s%c:\n", currentDir, bar);
-    }
-
     char resolved[PATH_MAX];
 
     if (fullList) {
@@ -321,9 +315,16 @@ void printDir(DIR *dirStream, char *currentDir, struct winsize *dimensions) {
 
                 if (lstat(resolved, &st) == 0) {
                     size_t colorLen;
+                    char *colorCode;
 
-                    char *colorCode = determineColor(entries[realIdx], &st, &colorLen);
-                    if (!colorCode) colorCode = "0";
+                    if (useColor) {
+                        if (lstat(resolved, &st) == 0) {
+                            colorCode = determineColor(entries[realIdx], &st, &colorLen);
+                        }
+                    } else {
+                        colorCode = "0";
+                        colorLen = 1;
+                    }
 
                     char bar = useBar && entries[realIdx].type == DT_DIR ? '/' : '\0';
                     char displayName[PATH_MAX + 2];
@@ -574,6 +575,7 @@ int main (int argc, char *argv[]) {
 
         // second pass, print dirs and children
         if (hadDir) {
+            int backline = 0;
             for (int i = 1; i < argc; i++) {
                 if (argv[i][0] != '-') {
                     dirStream = opendir(argv[i]);
@@ -588,52 +590,38 @@ int main (int argc, char *argv[]) {
                             if (!singleDir) {
                                 continue;
                             } else {
-                                printf("\033[A");
+                                //printf("\033[A");
                                 return 2;
                             }
                         }
 
                         printf("Directory or file '%s' couldn't be opened: %s\n\n", argv[i], strerror(errno));
                         if (singleDir) {
-                            printf("\033[A");
+                            //printf("\033[A");
                             return 2;
                         }
                         continue;
                     }
 
-                    onlyFail = 0;
-
-                    if (fullList && !singleDir) {
-                        char bar = useBar ? '/' : '\0';
-                        printf("\n%s%c:\n", argv[i], bar);
-                        struct stat st;
-                        lstat(argv[i], &st);
-
-                        struct entry dirEntry;
-                        strcpy(dirEntry.name, argv[i]);
-                        dirEntry.type = DT_DIR;
-
-                        //printFile(dirEntry, argv[i], 0, &st);
-
-                    } else {
-                        printDir(dirStream, dir, &dimensions);
+                    char bar = useBar ? '/' : '\0';
+                    if (!backline && !hadFile && !singleDir) {
+                        printf("\033[A");
+                        backline = 1;
                     }
+                    if (fullList && !singleDir) printf("\n");
+                    if (!singleDir) printf("%s%c:\n", argv[i], bar);
+
+                    onlyFail = 0;
 
                     printDir(dirStream, dir, &dimensions);
 
-                    if (!singleDir && !beRecursive) {
-                        //printf("\n");
-                    }
+                    printDir(dirStream, dir, &dimensions);
                     closedir(dirStream);
                 }
             }
         }
 
-        if (!hadFile && hadDir && !singleDir) {
-            //printf("\033[A");
-        } else if (hadFile && hadDir) {
-            //printf("\033[A");
-        }
+        if (argc - totalFlags >= 2) printf("\033[A");
 
         if (onlyFail) {
             return 2;
