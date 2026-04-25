@@ -51,7 +51,6 @@ int main (int argc, char *argv[]) {
                 }
             }
         }
-        closedir(dirStream);
     }
 
     return 0;
