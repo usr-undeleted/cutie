@@ -173,7 +173,7 @@ void printDir(DIR *dirStream, char *currentDir, struct winsize *dimensions) {
 
     struct entry *entries = malloc(dirFileCap * sizeof(*entries));
     if (entries == NULL) {
-        printf("Failed to get files; failed malloc.\n");
+        perror("Failed to allocate memory");
         exit(2);
     }
 
@@ -189,7 +189,7 @@ void printDir(DIR *dirStream, char *currentDir, struct winsize *dimensions) {
             dirFileCap *= 2;
             entries = realloc(entries, dirFileCap * sizeof(*entries));
             if (entries == NULL) {
-                printf("Failed to get files; failed malloc.\n");
+                perror("Failed to allocate memory");
                 exit(2);
             }
         }
@@ -213,7 +213,7 @@ void printDir(DIR *dirStream, char *currentDir, struct winsize *dimensions) {
             snprintf(resolved, sizeof(resolved), "%s/%s", currentDir, entries[i].name);
 
             if (lstat(resolved, &stats[i]) != 0) {
-                printf("Failed to get stats on file: stat() failed.\n");
+                perror("Failed to get stats on file");
                 if (!singleDir) {
                     continue;
                 } else {
@@ -471,7 +471,7 @@ int main (int argc, char *argv[]) {
                 parsedColorCount++;
                 void *tmp = realloc(parsedColors, parsedColorCount * sizeof(struct colorEntry));
                 if (tmp == NULL) {
-                    printf("Failed to get files; failed malloc.\n");
+                    perror("Failed to allocate memory");
                     exit(2);
                 }
                 parsedColors = tmp;
@@ -509,11 +509,9 @@ int main (int argc, char *argv[]) {
     if ((argc - totalFlags) <= 1) { // get cwd
         dirStream = opendir(".");
 
-        if (getcwd(dir, sizeof(dir)) != NULL) {
-               // copied absolute cwd to dir
-        } else {
-               perror("Couldn't get absolute of current dir");
-               return 1;
+        if ((getcwd(dir, sizeof(dir))) == NULL) {
+            perror("Couldn't get absolute of current dir");
+            return 1;
         }
 
         printDir(dirStream, dir, &dimensions);
@@ -535,13 +533,13 @@ int main (int argc, char *argv[]) {
                     hadFile = 1;
                     char resolved[PATH_MAX];
                     if ((realpath(argv[i], resolved)) == NULL) {
-                        printf("Failed to get true path.\n");
+                        printf("Failed to get true path: %s\n", strerror(errno));
                         exit(2);
                     }
 
                     struct stat st;
                     if ((stat(resolved, &st)) == -1) {
-                        printf("Failed to get stats on file: stat() failed.\n");
+                        printf("Failed to get stats on file: %s\n", strerror(errno));
                         if (!singleDir) {
                             continue;
                         } else {
@@ -586,18 +584,18 @@ int main (int argc, char *argv[]) {
                             continue;
                         }
                         if (errno == ENOENT) {
-                            printf("Directory '%s' coudln't be opened: %s\n\n", argv[i], strerror(errno));
+                            printf("Couldn't access '%s': %s\n\n", argv[i], strerror(errno));
                             if (!singleDir) {
                                 continue;
                             } else {
-                                //printf("\033[A");
+                                printf("\033[A");
                                 return 2;
                             }
                         }
 
-                        printf("Directory or file '%s' couldn't be opened: %s\n\n", argv[i], strerror(errno));
+                        printf("Couldn't access '%s': %s\n\n", argv[i], strerror(errno));
                         if (singleDir) {
-                            //printf("\033[A");
+                            printf("\033[A");
                             return 2;
                         }
                         continue;
