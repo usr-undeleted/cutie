@@ -276,10 +276,11 @@ void printDir(DIR *dirStream, char *currentDir, struct winsize *dimensions) {
         for (int i = 0; i < c; i++) {
             colWidth[i] = 0;
 
+            int realIdx;
             for (int j = 0; j < rows; j++) {
                 int idx = i * rows + j;
                 if (idx < visibleN) {
-                    int realIdx = visible[idx];
+                    realIdx = visible[idx];
                     int len = strlen(entries[realIdx].name);
 
                     if (useBar && entries[realIdx].type == DT_DIR) len++;
@@ -287,6 +288,8 @@ void printDir(DIR *dirStream, char *currentDir, struct winsize *dimensions) {
                 }
             }
             total += colWidth[i];
+            // if theres a space, add space for two apostrophes
+            if ((strchr(entries[realIdx].name, ' ')) != NULL) total += 2;
         }
         total += (c - 1) * 2;
 
@@ -327,14 +330,13 @@ void printDir(DIR *dirStream, char *currentDir, struct winsize *dimensions) {
                     }
 
                     char bar = useBar && entries[realIdx].type == DT_DIR ? '/' : '\0';
-                    char displayName[PATH_MAX + 2];
-                    if (bar) {
-                        snprintf(displayName, sizeof(displayName), "%s/", entries[realIdx].name);
-                    } else {
-                        snprintf(displayName, sizeof(displayName), "%s", entries[realIdx].name);
-                    }
+                    char displayName[PATH_MAX + 3];
+                    char hasSpace = strchr(entries[realIdx].name, ' ') ? 1 : 0;
+                    snprintf(displayName, sizeof(displayName), "%s%s%s%c",
+                        hasSpace ? "'" : "", entries[realIdx].name, hasSpace ? "'" : "", bar);
+
                     printf("\033[%.*sm%s\033[0m%-*s", (int)colorLen, colorCode, displayName,
-                        (int)(colWidth[i] - strlen(displayName)), "");
+                        (int)(colWidth[i] - strlen(displayName)) + (useBar ? 1 : 0), "");
                 }
             } else if (i < c - 1) {
                 printf("%-*s", (int)colWidth[i], "");
