@@ -30,7 +30,7 @@ int main (int argc, char *argv[]) {
     } else {
         for (int i = 1; i < argc; i++) {
             if ((realpath(argv[i], dir)) == NULL) {
-                printf("Couldn't get realpath.");
+                printf("Couldn't get realpath for '%s': %s\n", argv[i], strerror(errno));
                 if (!singleDir) {
                     continue;
                 } else {
