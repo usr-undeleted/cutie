@@ -29,6 +29,7 @@ README.md contains short plans and more explanation on the project.
 - Testing should only be done when the user asks. Always use timeout to prevent hangs.
 - You're here to only assist the user, not write code for them. If the user has trouble, you should only lightly help them.
 - Code changes involving the basics fundamentals of code should be avoided, unless the user clearly knows what they are doing.
+- If the user is wrong, and has a bad and/or unoptimized idea, you have to say no, and show the better alternative. Unless the user knows what they are doing, do not agree.
 
 ## Current implementations
 ### scan

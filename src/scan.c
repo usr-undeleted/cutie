@@ -445,7 +445,7 @@ int main (int argc, char *argv[]) {
             if (flags[i] == 5) beRecursive = 1;
         }
     } else {
-        printf("Invalid flag detected. See 'scan -h' or 'scan --help' for instructions.\n");
+        printf("Invalid flag detected. See '%s -h' or '%s --help' for instructions.\n", argv[0], argv[0]);
         return 2;
     }
 

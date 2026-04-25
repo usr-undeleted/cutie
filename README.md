@@ -21,9 +21,9 @@ Undeleted's life long goal to write their own core utils, following their own de
 - scan directories (scan); replace both ls and find, use --recursive|-r for find's functionality, otherwise, ls by default
 - print dir path (printpath); replace both pwd and realpath
 - printf wrapper (print)
+- query search (query)
 
 ## Planned:
-- query search (search)
 - file reading (show)
 - file/dir removal (rm); applies to directories and regular files
 - file/dir creation (create); create directories with "name/". should support recursion, with flag or not (create folder/file)
