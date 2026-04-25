@@ -614,8 +614,6 @@ int main (int argc, char *argv[]) {
                     onlyFail = 0;
 
                     printDir(dirStream, dir, &dimensions);
-
-                    printDir(dirStream, dir, &dimensions);
                     closedir(dirStream);
                 }
             }
