@@ -95,8 +95,10 @@ void printFile (struct entry entry, char *fullPath, int spacing, struct stat *st
         perms[9] = st->st_mode & S_IXOTH ? 'x' : '-';
         perms[10] = '\0';
         links = st->st_nlink;
-        owner = getpwuid(st->st_uid)->pw_name;
-        group = getgrgid(st->st_gid)->gr_name;
+        struct passwd *pw = getpwuid(st->st_uid);
+        owner = pw ? pw->pw_name : "???";
+        struct group *gr = getgrgid(st->st_gid);
+        group = gr ? gr->gr_name : "???";
         size = st->st_size;
         // formatted time
         mtime = st->st_mtime;
@@ -104,7 +106,7 @@ void printFile (struct entry entry, char *fullPath, int spacing, struct stat *st
         strftime(ftime, sizeof(ftime), "%b %d %H:%M", time);
     }
 
-    char printed[PATH_MAX + 10];
+    char printed[5000];
     size_t colorLen;
     char *colorCode = determineColor(entry, st, &colorLen);
     if (!colorCode) colorCode = "0";
@@ -113,8 +115,20 @@ void printFile (struct entry entry, char *fullPath, int spacing, struct stat *st
     if (apostrophe == '\0') {
         snprintf(printed, sizeof(printed), "\033[%.*sm%s%c", (int)colorLen, colorCode, entry.name, bar);
     } else {
-        snprintf(printed, sizeof(printed), "\033[%.*sm%c%s%c%c", (int)colorLen, colorCode, apostrophe, entry.name, apostrophe, bar);
+        snprintf(printed, sizeof(printed), "\033[%.*sm%c%s%c%c", (int)colorLen, colorCode,
+            apostrophe, entry.name, apostrophe, bar);
     }
+
+    if (entry.type == DT_LNK) {
+        char target[NAME_MAX + 10];
+        ssize_t len = readlink(fullPath, target, sizeof(target) - 1);
+        if (len > 0) {
+            target[len] = '\0';
+            strcat(printed, "\033[0m -> ");
+            strcat(printed, target);
+        }
+    }
+
     if (fullList) {
         printf("%s %*zu %-*s %-*s %*zu %s %s\e[0m\n",
             perms, (int)linksLargest, links,
@@ -122,9 +136,12 @@ void printFile (struct entry entry, char *fullPath, int spacing, struct stat *st
             (int)groupLargest, group,
             (int)sizeLargest, size,
             ftime, printed);
+
     } else {
         if (!beRecursive) {
+            // non recursive
             printf("%-*s\033[0m  ", spacing, printed);
+
         } else {
             // find where we should stop printing the full path
             // used to print everything but the file blue
@@ -188,18 +205,20 @@ void printDir(DIR *dirStream, char *currentDir, struct winsize *dimensions) {
 
     // say dir name
     char bar = useBar ? '/' : '\0';
-    if (!singleDir) {
+    if (!singleDir && !fullList) {
         printf("%s%c:\n", currentDir, bar);
     }
+
     char resolved[PATH_MAX];
 
     if (fullList) {
-        struct stat st;
+        // we lstat once, then store the results here
+        struct stat *stats = malloc(dirFileCount * sizeof(struct stat));
         // get the spacing for owner, groups, links, and size.
         for (int i = 0; i < dirFileCount; i++) {
             snprintf(resolved, sizeof(resolved), "%s/%s", currentDir, entries[i].name);
 
-            if (lstat(resolved, &st) != 0) {
+            if (lstat(resolved, &stats[i]) != 0) {
                 printf("Failed to get stats on file: stat() failed.\n");
                 if (!singleDir) {
                     continue;
@@ -209,36 +228,27 @@ void printDir(DIR *dirStream, char *currentDir, struct winsize *dimensions) {
             }
 
             size_t len;
-            len = snprintf(NULL, 0, "%zu", st.st_nlink);
+            len = snprintf(NULL, 0, "%zu", stats[i].st_nlink);
             if (len > linksLargest) linksLargest = len;
 
-            char *owner = getpwuid(st.st_uid)->pw_name;
+            char *owner = getpwuid(stats[i].st_uid)->pw_name;
             if (strlen(owner) > ownerLargest) ownerLargest = strlen(owner);
 
-            char *group = getgrgid(st.st_gid)->gr_name;
+            char *group = getgrgid(stats[i].st_gid)->gr_name;
             if (strlen(group) > groupLargest) groupLargest = strlen(group);
 
-            len = snprintf(NULL, 0, "%zu", st.st_size);
+            len = snprintf(NULL, 0, "%zu", stats[i].st_size);
             if (len > sizeLargest) sizeLargest = len;
         }
 
         // call printFile
         for (int i = 0; i < dirFileCount; i++) {
             snprintf(resolved, sizeof(resolved), "%s/%s", currentDir, entries[i].name);
-
-            // provides the st we will actually use
-            if (lstat(resolved, &st) != 0) {
-                printf("Failed to get stats on file: stat() failed.\n");
-                if (!singleDir) {
-                    continue;
-                } else {
-                    exit(2);
-                }
-            }
-            printFile(entries[i], resolved, 0, &st);
+            printFile(entries[i], resolved, 0, &stats[i]);
         }
         // never forget!
         free(entries);
+        free(stats);
         return;
     }
 
@@ -439,8 +449,12 @@ int main (int argc, char *argv[]) {
     }
 
     if (beRecursive) {
-        for (int i = 1; i < argc; i++) {
-            scanRecursive(argv[i]);
+        if (argc == 1) {
+            scanRecursive(".");
+        } else {
+            for (int i = 1; i < argc; i++) {
+                scanRecursive(argv[i]);
+            }
         }
 
         return 0;
@@ -551,13 +565,8 @@ int main (int argc, char *argv[]) {
                 }
             }
         }
-        if (fullList  && !singleDir) {
-            printf("\033[2A");
-        } else if (fullList && singleDir && !hadDir) {
-            printf("\033[A");
-        }
 
-        if (hadDir && hadFile) {
+        if (hadDir && hadFile && !fullList) {
             printf("\n\n");
         } else if (!hadDir && hadFile) {
             printf("\n");
@@ -593,24 +602,37 @@ int main (int argc, char *argv[]) {
                     }
 
                     onlyFail = 0;
+
+                    if (fullList && !singleDir) {
+                        char bar = useBar ? '/' : '\0';
+                        printf("\n%s%c:\n", argv[i], bar);
+                        struct stat st;
+                        lstat(argv[i], &st);
+
+                        struct entry dirEntry;
+                        strcpy(dirEntry.name, argv[i]);
+                        dirEntry.type = DT_DIR;
+
+                        //printFile(dirEntry, argv[i], 0, &st);
+
+                    } else {
+                        printDir(dirStream, dir, &dimensions);
+                    }
+
                     printDir(dirStream, dir, &dimensions);
+
                     if (!singleDir && !beRecursive) {
-                        printf("\n");
+                        //printf("\n");
                     }
                     closedir(dirStream);
-                    if (fullList && !singleDir) {
-                        printf("\033[2A");
-                    } else if (fullList && singleDir) {
-                        printf("\033[A");
-                    }
                 }
             }
         }
 
         if (!hadFile && hadDir && !singleDir) {
-            printf("\033[A");
+            //printf("\033[A");
         } else if (hadFile && hadDir) {
-            printf("\033[A");
+            //printf("\033[A");
         }
 
         if (onlyFail) {

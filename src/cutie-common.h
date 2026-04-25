@@ -27,13 +27,14 @@ int *labelFlags(int argc, char *argv[], struct flagInput *input) {
     size_t size = 0;
     int hasFlag = 0;
     for (int i = 0; i < argc; i++) {
-        if (strlen(argv[i]) > 1 && argv[i][0] == '-') {
+        int len = strlen(argv[i]);
+        if (len> 1 && argv[i][0] == '-') {
             if (argv[i][1] == '-') {
                 hasFlag = 1;
                 size++;
             } else {
                 hasFlag = 1;
-                size += strlen(argv[i]) - 1;
+                size += len - 1;
             }
         }
     }
