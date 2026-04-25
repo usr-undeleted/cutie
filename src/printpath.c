@@ -1,3 +1,4 @@
+#include <asm-generic/errno-base.h>
 #include <stdio.h>
 #include <dirent.h>
 #include <stdlib.h>
@@ -9,6 +10,9 @@ int main (int argc, char *argv[]) {
     char dir[PATH_MAX + 1];
     struct dirent *currentFile;
     DIR *dirStream;
+    unsigned int singleDir;
+
+    if (argc <= 2) singleDir = 1;
 
     if (argc == 1) {
         dirStream = opendir(".");
@@ -25,13 +29,26 @@ int main (int argc, char *argv[]) {
 
     } else {
         for (int i = 1; i < argc; i++) {
-            realpath(argv[i], dir);
+            if ((realpath(argv[i], dir)) == NULL) {
+                printf("Couldn't get realpath.");
+                if (!singleDir) {
+                    continue;
+                } else {
+                    return 2;
+                }
+            }
+
             dirStream = opendir(dir);
 
-            if (dirStream != NULL) {
-                printf("%s\n", realpath(argv[i], dir));
+            if (dirStream != NULL || errno == ENOTDIR) {
+                printf("%s\n", dir);
             } else {
                 printf("Couldn't check '%s': %s\n", dir, strerror(errno));
+                if (!singleDir) {
+                    continue;
+                } else {
+                    return 1;
+                }
             }
         }
         closedir(dirStream);
