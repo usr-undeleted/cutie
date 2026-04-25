@@ -568,7 +568,7 @@ int main (int argc, char *argv[]) {
         }
 
         if (hadDir && hadFile && !fullList) {
-            printf("\n\n");
+            printf("\n");
         } else if (!hadDir && hadFile) {
             printf("\n");
         }
@@ -604,6 +604,7 @@ int main (int argc, char *argv[]) {
                     }
 
                     char bar = useBar ? '/' : '\0';
+                    if (hadFile && hadDir) printf("\n");
                     if (!backline && !hadFile && !singleDir) {
                         printf("\033[A");
                         backline = 1;
@@ -624,8 +625,6 @@ int main (int argc, char *argv[]) {
                 }
             }
         }
-
-        if (argc - totalFlags >= 2) printf("\033[A");
 
         if (onlyFail) {
             return 2;
