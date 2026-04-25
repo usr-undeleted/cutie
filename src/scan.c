@@ -570,6 +570,7 @@ int main (int argc, char *argv[]) {
         } else if (!hadDir && hadFile) {
             printf("\n");
         }
+        if (fullList) printf("\033[A");
 
         // second pass, print dirs and children
         if (hadDir) {
