@@ -609,7 +609,13 @@ int main (int argc, char *argv[]) {
                         backline = 1;
                     }
                     if (fullList && !singleDir) printf("\n");
-                    if (!singleDir) printf("%s%c:\n", argv[i], bar);
+                    if (!singleDir) {
+                        if (useColor) {
+                            printf("\033[34;1m%s%c:\033[0m\n", argv[i], bar);
+                        } else {
+                            printf("%s%c:\n", argv[i], bar);
+                        }
+                    }
 
                     onlyFail = 0;
 
