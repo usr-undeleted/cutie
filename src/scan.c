@@ -450,7 +450,7 @@ int main (int argc, char *argv[]) {
     }
 
     if (beRecursive) {
-        if (argc == 1) {
+        if (argc - totalFlags == 1) {
             scanRecursive(".");
         } else {
             for (int i = 1; i < argc; i++) {
