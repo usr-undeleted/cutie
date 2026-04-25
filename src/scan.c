@@ -604,7 +604,7 @@ int main (int argc, char *argv[]) {
                     }
 
                     char bar = useBar ? '/' : '\0';
-                    if (hadFile && hadDir) printf("\n");
+                    if (hadFile && hadDir && !fullList) printf("\n");
                     if (!backline && !hadFile && !singleDir) {
                         printf("\033[A");
                         backline = 1;
