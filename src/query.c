@@ -1,5 +1,7 @@
 #include "cutie-common.h"
+#include <ctype.h>
 #include <stdlib.h>
+#include <strings.h>
 #include <unistd.h>
 
 // case sensitive (1) or not (0)
@@ -50,6 +52,8 @@ int main (int argc, char *argv[]) {
     if (flags != NULL) {
         for (int i = 0; i < input.flagCount; i++) {
             if (flags[i] == 0) helpMenu(argv[0]);
+
+            if (flags[i] == 1) beSensitive = 0;
         }
     } else {
         printf("Invalid flag detected. See '%s -h' or '%s --help' for instructions.\n", argv[0], argv[0]);
@@ -58,6 +62,8 @@ int main (int argc, char *argv[]) {
 
     // find all queries to be matched and their lens
     int allQueries[argc];
+    int queryColors[argc];
+    size_t colorIdx = 0;
     unsigned int noQuery = 1;
     size_t queriesLen = 0;
     for (int i = 0; i < argc; i++) {
@@ -66,6 +72,7 @@ int main (int argc, char *argv[]) {
 
         if (i != 0 && argv[i][0] != '-') {
             allQueries[i] = strlen(argv[i]);
+            queryColors[i] = colorIdx++;
             noQuery = 0;
         }
     }
@@ -94,11 +101,19 @@ int main (int argc, char *argv[]) {
 
             // walk trough all queries provided
             for (int j = 0; j < queriesLen; j++) {
-                if (line[i] != argv[j][0] || allQueries[j] == -1) continue;
+                if (allQueries[j] == -1) continue;
+                if (beSensitive ? line[i] != argv[j][0] : tolower(line[i]) != tolower(argv[j][0])) continue;
 
                 // if theres a match, we set the query to be shown as
                 // the longest one
-                if (!strncmp(line + i, argv[j], allQueries[j])) {
+                int compVal = 1;
+                if (beSensitive) {
+                    compVal = strncmp(line + i, argv[j], allQueries[j]);
+                } else {
+                    compVal = strncasecmp(line + i, argv[j], allQueries[j]);
+                }
+
+                if (!compVal) {
                     if (allQueries[j] > bestLen) {
                         bestLen = allQueries[j];
                         bestIdx = j;
@@ -108,7 +123,7 @@ int main (int argc, char *argv[]) {
 
             if (bestIdx != -1) {
                 printf("%.*s", (int)(i - lastEnd), line + lastEnd);
-                printf("\e[3%d;1m%.*s\e[0m", bestIdx % 7, (int)bestLen, line + i);
+                printf("\e[3%d;1m%.*s\e[0m", (queryColors[bestIdx] + 1) % 7, (int)bestLen, line + i);
                 lastEnd = i + bestLen;
                 i += bestLen - 1;
                 onlyFail = 0;
