@@ -132,7 +132,7 @@ int main (int argc, char *argv[]) {
             }
 
             if (bestIdx != -1) {
-                if (printLineNum) printf("\e[107;30m%zu\e[0m ", lineNum);
+                if (printLineNum) printf("\e[107;30m%zu:\e[0m", lineNum);
                 printLineNum = 0;
                 printf("%.*s", (int)(i - lastEnd), line + lastEnd);
                 printf("\e[3%d;1m%.*s\e[0m", (queryColors[bestIdx] + 1) % 7, (int)bestLen, line + i);
