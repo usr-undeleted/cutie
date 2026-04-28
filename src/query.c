@@ -1,11 +1,12 @@
 #include "cutie-common.h"
-#include <ctype.h>
 #include <stdlib.h>
 #include <strings.h>
 #include <unistd.h>
 
 // case sensitive (1) or not (0)
 unsigned int beSensitive = 1;
+// show lines or not
+unsigned int showLines = 0;
 
 void helpMenu(char *invocation) {
     printf("\e[1m%s\e[0m command basic usage:\n"
@@ -14,7 +15,8 @@ void helpMenu(char *invocation) {
         "\e[1m%s\e[0m will search stdin and look for a match of your pattern to stdin. you can feed it stdin trough a pipe, for example.\n\n"
         "flags:\n"
         "   \e[1m-h\e[0m or \e[1m--help\e[0m: show this menu.\n"
-        "   \e[1m-i\e[0m or \e[1m--ignore-case\e[0m: disable case sensitive searching.\n\n"
+        "   \e[1m-i\e[0m or \e[1m--ignore-case\e[0m: disable case sensitive searching.\n"
+        "   \e[1m-l\e[0m or \e[1m--lines\e[0m: display the line number.\n\n"
         "\e[2;3m%s is part of the cutie project hosted under https://github.com/usr-undeleted/cutie licensed under the GPLv3 license.\e[0m\n",
         invocation, invocation, invocation, invocation
     );
@@ -33,11 +35,13 @@ int main (int argc, char *argv[]) {
     // manage flags
     char charFlags[] = {
         'h',
-        'i'
+        'i',
+        'l'
     };
     char *stringFlags[] = {
         "--help",
-        "--ignore-case"
+        "--ignore-case",
+        "--lines"
     };
     int charLen = sizeof(charFlags) / sizeof(charFlags[0]);
     int stringLen = sizeof(stringFlags) / sizeof(stringFlags[0]);
@@ -54,6 +58,8 @@ int main (int argc, char *argv[]) {
             if (flags[i] == 0) helpMenu(argv[0]);
 
             if (flags[i] == 1) beSensitive = 0;
+
+            if (flags[i] == 2) showLines = 1;
         }
     } else {
         printf("Invalid flag detected. See '%s -h' or '%s --help' for instructions.\n", argv[0], argv[0]);
@@ -89,7 +95,12 @@ int main (int argc, char *argv[]) {
     ssize_t len;
     // get a valid line
     size_t lastEnd = 0;
+    // count the line
+    size_t lineNum = 0;
+    unsigned int printLineNum = 1;
     while ((len = getline(&line, &cap, stdin)) != -1) {
+        lineNum++;
+
         lastEnd = 0;
         hadMatch = 0;
         // walk trough stdin
@@ -102,7 +113,6 @@ int main (int argc, char *argv[]) {
             // walk trough all queries provided
             for (int j = 0; j < queriesLen; j++) {
                 if (allQueries[j] == -1) continue;
-                if (beSensitive ? line[i] != argv[j][0] : tolower(line[i]) != tolower(argv[j][0])) continue;
 
                 // if theres a match, we set the query to be shown as
                 // the longest one
@@ -122,6 +132,8 @@ int main (int argc, char *argv[]) {
             }
 
             if (bestIdx != -1) {
+                if (printLineNum) printf("\e[107;30m%zu\e[0m ", lineNum);
+                printLineNum = 0;
                 printf("%.*s", (int)(i - lastEnd), line + lastEnd);
                 printf("\e[3%d;1m%.*s\e[0m", (queryColors[bestIdx] + 1) % 7, (int)bestLen, line + i);
                 lastEnd = i + bestLen;
@@ -133,6 +145,8 @@ int main (int argc, char *argv[]) {
         if (hadMatch) {
             printf("%s", line + lastEnd);
         }
+
+        printLineNum = 1;
     }
     free(line);
 
