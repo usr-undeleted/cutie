@@ -3,6 +3,7 @@
 #include <string.h>
 #include <strings.h>
 #include <unistd.h>
+#include <bits/posix2_lim.h>
 
 // case sensitive (1) or not (0)
 unsigned int beSensitive = 1;
@@ -77,9 +78,9 @@ int main (int argc, char *argv[]) {
 
     // context counts; set by flags such as -A
     size_t contextAfter = 0;
-    size_t selectedContextAfter;
+    size_t selectedContextAfter = 0;
     size_t contextBefore = 0;
-    size_t selectedContextBefore;
+    size_t selectedContextBefore = 0;
 
     // get extra args; stuff like -e or -A
     // mark array to set stuff to ignore or not
@@ -136,7 +137,7 @@ int main (int argc, char *argv[]) {
             if (i + 1 < argc) {
                 markedArgs[i + 1] = 0;
                 contextAfter = atoi(argv[i + 1]);
-                contextBefore = atoi(argv[i + 1]);
+                contextBefore = contextAfter;
                 selectedContextAfter = contextAfter;
                 selectedContextBefore = contextBefore;
                 i++; // skip used arg
@@ -175,6 +176,11 @@ int main (int argc, char *argv[]) {
     unsigned int hadMatch = 0;
     // used for context after
     unsigned int doContextAfter = 0;
+    // used for context before
+    char **beforeBuf = calloc(contextBefore, sizeof(char *));
+    size_t bufPos = 0; // where to write
+    size_t bufCount = 0; // how many slots are filled
+
     char *line = NULL;
     size_t cap = 0;
     ssize_t len;
@@ -183,12 +189,22 @@ int main (int argc, char *argv[]) {
     // count the line
     size_t lineNum = 0;
     unsigned int printLineNum = 1;
+
     while ((len = getline(&line, &cap, stdin)) != -1) {
         // context after
         if (doContextAfter) {
             printf("%s", line);
             contextAfter--;
             if (!contextAfter) doContextAfter = 0;
+        }
+        // store context b4
+        if (selectedContextBefore) {
+            free(beforeBuf[bufPos]);
+            beforeBuf[bufPos] = strdup(line);
+            if (selectedContextBefore > 0) {
+                bufPos = (bufPos + 1) % contextBefore;
+            };
+            if (bufCount < contextBefore) bufCount++;
         }
 
         lineNum++;
@@ -224,6 +240,13 @@ int main (int argc, char *argv[]) {
             }
 
             if (bestIdx != -1) {
+                // context b4
+                size_t start = (bufCount < contextBefore) ? 0 : bufPos;
+                for (size_t k = 0; k < bufCount; k++) {
+                    size_t idx = selectedContextBefore > 0 ? (start + k) % contextBefore : 0;
+                    printf("%s", beforeBuf[idx]);
+                }
+
                 if (printLineNum) printf("\e[107;30m%zu:\e[0m", lineNum);
                 printLineNum = 0;
                 printf("%.*s", (int)(i - lastEnd), line + lastEnd);
@@ -232,9 +255,9 @@ int main (int argc, char *argv[]) {
                 i += bestLen - 1;
                 onlyFail = 0;
                 hadMatch = 1;
+
                 doContextAfter = 1;
                 contextAfter = selectedContextAfter;
-                contextBefore = selectedContextBefore;
             }
         }
         if (hadMatch) {
