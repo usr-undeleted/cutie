@@ -182,6 +182,7 @@ int main (int argc, char *argv[]) {
     char **beforeBuf = calloc(contextBefore, sizeof(char *));
     size_t bufPos = 0; // where to write
     size_t bufCount = 0; // how many slots are filled
+    size_t beforeBufLines[contextBefore];
 
     char *line = NULL;
     size_t cap = 0;
@@ -193,8 +194,10 @@ int main (int argc, char *argv[]) {
     unsigned int printLineNum = 1;
 
     while ((len = getline(&line, &cap, stdin)) != -1) {
+        lineNum++;
         // context after
         if (doContextAfter) {
+            if (showLines) printf("\e[107;30m%zu:\e[0m", lineNum);
             printf("%s", line);
             contextAfter--;
             if (!contextAfter) doContextAfter = 0;
@@ -203,13 +206,12 @@ int main (int argc, char *argv[]) {
         if (selectedContextBefore) {
             free(beforeBuf[bufPos]);
             beforeBuf[bufPos] = strdup(line);
+            beforeBufLines[bufPos] = lineNum;
             if (selectedContextBefore > 0) {
                 bufPos = (bufPos + 1) % contextBefore;
             };
             if (bufCount < contextBefore) bufCount++;
         }
-
-        lineNum++;
 
         lastEnd = 0;
         hadMatch = 0;
@@ -245,11 +247,15 @@ int main (int argc, char *argv[]) {
                 // context b4
                 size_t start = (bufCount < contextBefore) ? 0 : bufPos;
                 for (size_t k = 0; k < bufCount; k++) {
-                    size_t idx = selectedContextBefore > 0 ? (start + k) % contextBefore : 0;
+                    size_t idx = selectedContextBefore > 0 ? (start + k) % contextBefore: 0;
+                    if (showLines && beforeBufLines[idx] != lineNum) {
+                        printf("\e[107;30m%zu:\e[0m", beforeBufLines[idx]);
+                    }
+                    if (beforeBufLines[idx] == lineNum) continue; // skip matched line
                     printf("%s", beforeBuf[idx]);
                 }
 
-                if (printLineNum) printf("\e[107;30m%zu:\e[0m", lineNum);
+                if (showLines) printf("\e[107;30m%zu:\e[0m", lineNum);
                 printLineNum = 0;
                 printf("%.*s", (int)(i - lastEnd), line + lastEnd);
                 printf("\e[3%d;1m%.*s\e[0m", (queryColors[bestIdx] + 1) % 7, (int)bestLen, line + i);
@@ -258,7 +264,9 @@ int main (int argc, char *argv[]) {
                 onlyFail = 0;
                 hadMatch = 1;
 
-                doContextAfter = 1;
+                bufCount = 0;
+                bufPos = 0;
+                doContextAfter = selectedContextAfter > 0 ? 1 : 0;
                 contextAfter = selectedContextAfter;
             }
         }
