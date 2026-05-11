@@ -12,13 +12,14 @@ unsigned int showLines = 0;
 void helpMenu(char *invocation) {
     printf("\e[1m%s\e[0m command basic usage:\n"
         "   \e[1m%s\e[0m <flags> <pattern>\n"
-        "   \e[3;2mnote that where flags and the pattern are located don't matter.\e[0m\n"
+        "   \e[3;2mnote that where flags and the pattern are located don't matter; only flags like -e or -A have to be standalone.\e[0m\n"
         "\e[1m%s\e[0m will search stdin and look for a match of your pattern to stdin. you can feed it stdin trough a pipe, for example.\n\n"
         "flags:\n"
         "   \e[1m-h\e[0m or \e[1m--help\e[0m: show this menu.\n"
         "   \e[1m-i\e[0m or \e[1m--ignore-case\e[0m: disable case sensitive searching.\n"
         "   \e[1m-l\e[0m or \e[1m--lines\e[0m: display the line number.\n"
-        "   \e[1m-e\e[0m: get anything after flag and treat it as an argument.\n\n"
+        "   \e[1m-e\e[0m: get anything after flag and treat it as an argument.\n"
+        "   \e[1m-A\e[0m: show extra lines of context after finding match.\n\n"
         "\e[2;3m%s is part of the cutie project hosted under https://github.com/usr-undeleted/cutie licensed under the GPLv3 license.\e[0m\n",
         invocation, invocation, invocation, invocation
     );
@@ -41,7 +42,10 @@ int main (int argc, char *argv[]) {
         'l',
         // keep flags that require one arg here
         // to prevent any errors from labelFlags().
-        'e'
+        'e',
+        'A',
+        'B',
+        'C'
     };
     char *stringFlags[] = {
         "--help",
@@ -71,11 +75,16 @@ int main (int argc, char *argv[]) {
         return 2;
     }
 
+    // context counts; set by flags such as -A
+    size_t contextAfter = 0;
+    size_t selectedContextAfter;
+    size_t contextBefore = 0;
+    size_t selectedContextBefore;
+
     // get extra args; stuff like -e or -A
     // mark array to set stuff to ignore or not
-    // 0 = not used
+    // 0 = not used (flags or used by -A)
     // 1 = usable (-e, normal)
-    // 2 = used by -A, -B, etc. ignore
     int markedArgs[argc];
     for (int i = 0 ; i < argc; i++) {
         if (!i) { markedArgs[i] = 0; continue; };
@@ -91,7 +100,48 @@ int main (int argc, char *argv[]) {
             if (i + 1 < argc) {
                 markedArgs[i + 1] = 1;
             } else {
-                printf("No argument provided for -e. See '%s -h' for instructions.\n", argv[0]);
+                printf("No argument provided for -e. See '%s -h' or '%s --help' for instructions.\n", argv[0], argv[0]);
+                return 2;
+            }
+            continue;
+        }
+
+        if (!strcmp(argv[i], "-A")) {
+            if (i + 1 < argc) {
+                markedArgs[i + 1] = 0;
+                contextAfter = atoi(argv[i + 1]);
+                selectedContextAfter = contextAfter;
+                i++; // skip used arg
+            } else {
+                printf("No argument provided for -A. See '%s -h' or '%s --help' for instructions.\n", argv[0], argv[0]);
+                return 2;
+            }
+            continue;
+        }
+
+        if (!strcmp(argv[i], "-B")) {
+            if (i + 1 < argc) {
+                markedArgs[i + 1] = 0;
+                contextBefore = atoi(argv[i + 1]);
+                selectedContextBefore = contextBefore;
+                i++; // skip used arg
+            } else {
+                printf("No argument provided for -B. See '%s -h' or '%s --help' for instructions.\n", argv[0], argv[0]);
+                return 2;
+            }
+            continue;
+        }
+
+        if (!strcmp(argv[i], "-C")) {
+            if (i + 1 < argc) {
+                markedArgs[i + 1] = 0;
+                contextAfter = atoi(argv[i + 1]);
+                contextBefore = atoi(argv[i + 1]);
+                selectedContextAfter = contextAfter;
+                selectedContextBefore = contextBefore;
+                i++; // skip used arg
+            } else {
+                printf("No argument provided for -C. See '%s -h' or '%s --help' for instructions.\n", argv[0], argv[0]);
                 return 2;
             }
             continue;
@@ -121,7 +171,10 @@ int main (int argc, char *argv[]) {
     }
 
     unsigned int onlyFail = 1;
+    // normal match
     unsigned int hadMatch = 0;
+    // used for context after
+    unsigned int doContextAfter = 0;
     char *line = NULL;
     size_t cap = 0;
     ssize_t len;
@@ -131,6 +184,13 @@ int main (int argc, char *argv[]) {
     size_t lineNum = 0;
     unsigned int printLineNum = 1;
     while ((len = getline(&line, &cap, stdin)) != -1) {
+        // context after
+        if (doContextAfter) {
+            printf("%s", line);
+            contextAfter--;
+            if (!contextAfter) doContextAfter = 0;
+        }
+
         lineNum++;
 
         lastEnd = 0;
@@ -172,6 +232,9 @@ int main (int argc, char *argv[]) {
                 i += bestLen - 1;
                 onlyFail = 0;
                 hadMatch = 1;
+                doContextAfter = 1;
+                contextAfter = selectedContextAfter;
+                contextBefore = selectedContextBefore;
             }
         }
         if (hadMatch) {
