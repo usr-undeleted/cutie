@@ -1,5 +1,6 @@
 #include "cutie-common.h"
 #include <stdlib.h>
+#include <string.h>
 #include <strings.h>
 #include <unistd.h>
 
@@ -16,7 +17,8 @@ void helpMenu(char *invocation) {
         "flags:\n"
         "   \e[1m-h\e[0m or \e[1m--help\e[0m: show this menu.\n"
         "   \e[1m-i\e[0m or \e[1m--ignore-case\e[0m: disable case sensitive searching.\n"
-        "   \e[1m-l\e[0m or \e[1m--lines\e[0m: display the line number.\n\n"
+        "   \e[1m-l\e[0m or \e[1m--lines\e[0m: display the line number.\n"
+        "   \e[1m-e\e[0m: get anything after flag and treat it as an argument.\n\n"
         "\e[2;3m%s is part of the cutie project hosted under https://github.com/usr-undeleted/cutie licensed under the GPLv3 license.\e[0m\n",
         invocation, invocation, invocation, invocation
     );
@@ -36,12 +38,15 @@ int main (int argc, char *argv[]) {
     char charFlags[] = {
         'h',
         'i',
-        'l'
+        'l',
+        // keep flags that require one arg here
+        // to prevent any errors from labelFlags().
+        'e'
     };
     char *stringFlags[] = {
         "--help",
         "--ignore-case",
-        "--lines"
+        "--lines",
     };
     int charLen = sizeof(charFlags) / sizeof(charFlags[0]);
     int stringLen = sizeof(stringFlags) / sizeof(stringFlags[0]);
@@ -66,6 +71,33 @@ int main (int argc, char *argv[]) {
         return 2;
     }
 
+    // get extra args; stuff like -e or -A
+    // mark array to set stuff to ignore or not
+    // 0 = not used
+    // 1 = usable (-e, normal)
+    // 2 = used by -A, -B, etc. ignore
+    int markedArgs[argc];
+    for (int i = 0 ; i < argc; i++) {
+        if (!i) { markedArgs[i] = 0; continue; };
+        markedArgs[i] = 0;
+
+        // isnt a flag?
+        if (argv[i][0] != '-') {
+            markedArgs[i] = 1;
+            continue;
+        };
+
+        if (!strcmp(argv[i], "-e")) {
+            if (i + 1 < argc) {
+                markedArgs[i + 1] = 1;
+            } else {
+                printf("No argument provided for -e. See '%s -h' for instructions.\n", argv[0]);
+                return 2;
+            }
+            continue;
+        }
+    }
+
     // find all queries to be matched and their lens
     int allQueries[argc];
     int queryColors[argc];
@@ -76,7 +108,7 @@ int main (int argc, char *argv[]) {
         allQueries[i] = -1;
         queriesLen++;
 
-        if (i != 0 && argv[i][0] != '-') {
+        if (markedArgs[i] == 1) {
             allQueries[i] = strlen(argv[i]);
             queryColors[i] = colorIdx++;
             noQuery = 0;
