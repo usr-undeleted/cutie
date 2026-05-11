@@ -258,7 +258,7 @@ int main (int argc, char *argv[]) {
                 if (showLines) printf("\e[107;30m%zu:\e[0m", lineNum);
                 printLineNum = 0;
                 printf("%.*s", (int)(i - lastEnd), line + lastEnd);
-                printf("\e[3%d;1m%.*s\e[0m", (queryColors[bestIdx] + 1) % 7, (int)bestLen, line + i);
+                printf("\e[3%d;1m%.*s\e[0m", (queryColors[bestIdx] + 1) % 6 + 1, (int)bestLen, line + i);
                 lastEnd = i + bestLen;
                 i += bestLen - 1;
                 onlyFail = 0;
