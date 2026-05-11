@@ -20,7 +20,9 @@ void helpMenu(char *invocation) {
         "   \e[1m-i\e[0m or \e[1m--ignore-case\e[0m: disable case sensitive searching.\n"
         "   \e[1m-l\e[0m or \e[1m--lines\e[0m: display the line number.\n"
         "   \e[1m-e\e[0m: get anything after flag and treat it as an argument.\n"
-        "   \e[1m-A\e[0m: show extra lines of context after finding match.\n\n"
+        "   \e[1m-A\e[0m: show extra N lines of context after finding match.\n"
+        "   \e[1m-B\e[0m: show N lines before match.\n"
+        "   \e[1m-C\e[0m: show N extra lines and lines before match of context after finding match.\n\n"
         "\e[2;3m%s is part of the cutie project hosted under https://github.com/usr-undeleted/cutie licensed under the GPLv3 license.\e[0m\n",
         invocation, invocation, invocation, invocation
     );
