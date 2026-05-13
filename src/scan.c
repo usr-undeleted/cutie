@@ -4,6 +4,7 @@
 #include <pwd.h>
 #include <grp.h>
 #include <stdio.h>
+#include <stdlib.h>
 #include <string.h>
 #include <sys/stat.h>
 #include <time.h>
@@ -399,6 +400,12 @@ int main (int argc, char *argv[]) {
     ioctl(STDOUT_FILENO, TIOCGWINSZ, &dimensions);
     // used by determineColor
     lsColors = getenv("LS_COLORS");
+    if (!lsColors) {
+        getenv("SCAN_COLORS");
+        if (!lsColors) {
+            returnCode = 2;
+        }
+    }
 
     // exclude flags from total arg count
     int totalFlags = 0;
