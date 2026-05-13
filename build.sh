@@ -81,7 +81,7 @@ while true; do
 
     if [[ $allinput == [yY] ]]; then
         allofthem=1
-        printf "\nCompiling everything!"
+        printf "\nCompiling everything!\n"
         break
     elif [[ $allinput == [nN] ]]; then
         break
