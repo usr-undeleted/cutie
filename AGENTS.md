@@ -31,8 +31,6 @@ README.md contains short plans and more explanation on the project.
 - Code changes involving the basics fundamentals of code should be avoided, unless the user clearly knows what they are doing.
 - If the user is wrong, and has a bad and/or unoptimized idea, you have to say no, and show the better alternative. Unless the user knows what they are doing, do not agree.
 
-## Current implementations
-### scan
-Replacement for ls and find.
+## Current implementations are found in the readme.
 
 ### Planed implementantions are in the README.
