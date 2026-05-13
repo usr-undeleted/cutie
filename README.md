@@ -23,17 +23,27 @@ Undeleted's life long goal to write their own core utils, following their own de
 - printf wrapper (print)
 - query search (query)
 - file reading (show)
+- install script (build.sh); enable usage with 'chmod +x build.sh'. Instructions on command output. Includes even custom compile flags!!
 
 ## Planned:
 - file/dir removal (rm); applies to directories and regular files
 - file/dir creation (create); create directories with "name/". should support recursion, with flag or not (create folder/file)
-- install script. Will let you pick compile flags at start (native march, debugging, output location, static linking, etc), and let the user pick what utils to compile.
 - timeout (timeout); :p
 
-### (temp) compiling:
+## Compiling:
+- A script (build.sh) is available for usage to compile specific programs. It is interactive!
+- To use it, run:
+```
+chmod +x build.sh
+```
+- That will make the script executable. Now, to execute it:
+```
+./build.sh
+```
+### Incase you need to compile manually:
 - ALWAYS use clang; testing is done exclusively with clang
 ```
-clang -I src/cutie-common.h -o bin/<name of bin> src/<name of bin source>.c
+clang -I src/cutie-common.h -o bin/<program> src/<program>.c
 ```
 
 ## Code guidelines
