@@ -26,7 +26,7 @@ printf "\e[3;36mLatest git commit:\e[0m\n"
 git -C $scriptdir show --summary HEAD | cat
 
 ## show all available programs and get binaries
-printf "\e[3;36mAvailable programs (.c not included):\e[0m\n"
+printf "\n\e[3;36mAvailable programs (.c not included):\e[0m\n"
 binaries=()
 for file in $sourcepath; do
     printf "\e[1m$(basename $(basename "$file" src/) .c)\e[0m  "
