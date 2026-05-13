@@ -12,8 +12,8 @@ unsigned int showLines = 0;
 
 void helpMenu(char *invocation) {
     printf("\e[1m%s\e[0m command basic usage:\n"
-        "   \e[1m%s\e[0m <flags> <pattern>\n"
-        "   \e[3;2mnote that where flags and the pattern are located don't matter; only flags like -e or -A have to be standalone.\e[0m\n"
+        "   \e[1m%s\e[0m <flags> <pattern(s)>\n"
+        "   \e[3;2mnote that where flags and the pattern(s) are located don't matter; only flags like -e or -A have to be standalone.\e[0m\n"
         "\e[1m%s\e[0m will search stdin and look for a match of your pattern to stdin. you can feed it stdin trough a pipe, for example.\n\n"
         "flags:\n"
         "   \e[1m-h\e[0m or \e[1m--help\e[0m: show this menu.\n"
@@ -34,7 +34,7 @@ void helpMenu(char *invocation) {
 int main (int argc, char *argv[]) {
     // manage empty stdin (no pipe)
     if (isatty(STDIN_FILENO)) {
-        printf("Stdin wasn't provided. See '%s -h' or '%s --help' for instructions.\n", argv[0], argv[0]);
+        fprintf(stderr, "Stdin wasn't provided. See '%s -h' or '%s --help' for instructions.\n", argv[0], argv[0]);
         return 2;
     }
 
@@ -74,7 +74,7 @@ int main (int argc, char *argv[]) {
             if (flags[i] == 2) showLines = 1;
         }
     } else {
-        printf("Invalid flag detected. See '%s -h' or '%s --help' for instructions.\n", argv[0], argv[0]);
+        fprintf(stderr, "Invalid flag detected. See '%s -h' or '%s --help' for instructions.\n", argv[0], argv[0]);
         return 2;
     }
 
@@ -103,7 +103,7 @@ int main (int argc, char *argv[]) {
             if (i + 1 < argc) {
                 markedArgs[i + 1] = 1;
             } else {
-                printf("No argument provided for -e. See '%s -h' or '%s --help' for instructions.\n", argv[0], argv[0]);
+                fprintf(stderr, "No argument provided for -e. See '%s -h' or '%s --help' for instructions.\n", argv[0], argv[0]);
                 return 2;
             }
             continue;
@@ -116,7 +116,7 @@ int main (int argc, char *argv[]) {
                 selectedContextAfter = contextAfter;
                 i++; // skip used arg
             } else {
-                printf("No argument provided for -A. See '%s -h' or '%s --help' for instructions.\n", argv[0], argv[0]);
+                fprintf(stderr, "No argument provided for -A. See '%s -h' or '%s --help' for instructions.\n", argv[0], argv[0]);
                 return 2;
             }
             continue;
@@ -129,7 +129,7 @@ int main (int argc, char *argv[]) {
                 selectedContextBefore = contextBefore;
                 i++; // skip used arg
             } else {
-                printf("No argument provided for -B. See '%s -h' or '%s --help' for instructions.\n", argv[0], argv[0]);
+                fprintf(stderr, "No argument provided for -B. See '%s -h' or '%s --help' for instructions.\n", argv[0], argv[0]);
                 return 2;
             }
             continue;
@@ -144,7 +144,7 @@ int main (int argc, char *argv[]) {
                 selectedContextBefore = contextBefore;
                 i++; // skip used arg
             } else {
-                printf("No argument provided for -C. See '%s -h' or '%s --help' for instructions.\n", argv[0], argv[0]);
+                fprintf(stderr, "No argument provided for -C. See '%s -h' or '%s --help' for instructions.\n", argv[0], argv[0]);
                 return 2;
             }
             continue;
@@ -169,7 +169,7 @@ int main (int argc, char *argv[]) {
     }
 
     if (noQuery) {
-        printf("No query specified. See '%s -h' or '%s --help' for instructions.\n", argv[0], argv[0]);
+        fprintf(stderr, "No query specified. See '%s -h' or '%s --help' for instructions.\n", argv[0], argv[0]);
         return 2;
     }
 

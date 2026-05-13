@@ -50,8 +50,8 @@ int *labelFlags(int argc, char *argv[], struct flagInput *input) {
 
     int *returned = (int*)malloc(size * sizeof(int));
     if (returned == NULL) {
-        printf("Failed to get flags; failed malloc.\n");
-        exit(2);
+        printf("Failed to get flags: failed malloc.\n");
+        exit(1);
     }
     int index = 0;
 

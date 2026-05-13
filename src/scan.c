@@ -174,7 +174,7 @@ void printDir(DIR *dirStream, char *currentDir, struct winsize *dimensions) {
     struct entry *entries = malloc(dirFileCap * sizeof(*entries));
     if (entries == NULL) {
         perror("Failed to allocate memory");
-        exit(2);
+        exit(1);
     }
 
     // populate entries

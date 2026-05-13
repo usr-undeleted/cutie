@@ -22,9 +22,9 @@ Undeleted's life long goal to write their own core utils, following their own de
 - print dir path (printpath); replace both pwd and realpath
 - printf wrapper (print)
 - query search (query)
+- file reading (show)
 
 ## Planned:
-- file reading (show)
 - file/dir removal (rm); applies to directories and regular files
 - file/dir creation (create); create directories with "name/". should support recursion, with flag or not (create folder/file)
 - install script. Will let you pick compile flags at start (native march, debugging, output location, static linking, etc), and let the user pick what utils to compile.
