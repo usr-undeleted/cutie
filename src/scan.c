@@ -27,6 +27,8 @@ unsigned int useBar = 0;
 unsigned int fullList = 0;
 // immediately open directories, if found
 unsigned int beRecursive = 0;
+// return code for errors, same logic (1 program, 2 user)
+int returnCode = 0;
 
 void helpMenu(char *invocation) {
     printf("\e[1m%s\e[0m command basic usage:\n"
@@ -190,7 +192,7 @@ void printDir(DIR *dirStream, char *currentDir, struct winsize *dimensions) {
             entries = realloc(entries, dirFileCap * sizeof(*entries));
             if (entries == NULL) {
                 perror("Failed to allocate memory");
-                exit(2);
+                exit(1);
             }
         }
 
@@ -213,8 +215,9 @@ void printDir(DIR *dirStream, char *currentDir, struct winsize *dimensions) {
             snprintf(resolved, sizeof(resolved), "%s/%s", currentDir, entries[i].name);
 
             if (lstat(resolved, &stats[i]) != 0) {
-                perror("Failed to get stats on file");
+                printf("Failed to get stats on file '%s': %s", resolved, strerror(errno));
                 if (!singleDir) {
+                    returnCode = 2;
                     continue;
                 } else {
                     exit(2);
@@ -464,6 +467,7 @@ int main (int argc, char *argv[]) {
     }
 
     free(flags);
+
     if (useColor) {
         // populate offsets
         size_t len = strlen(lsColors);
@@ -474,7 +478,7 @@ int main (int argc, char *argv[]) {
                 void *tmp = realloc(parsedColors, parsedColorCount * sizeof(struct colorEntry));
                 if (tmp == NULL) {
                     perror("Failed to allocate memory");
-                    exit(2);
+                    exit(1);
                 }
                 parsedColors = tmp;
 
@@ -508,12 +512,14 @@ int main (int argc, char *argv[]) {
         singleDir = 1;
     }
 
+    // decide if we should print extra newlines
+    unsigned int needSeparator = 0;
     if ((argc - totalFlags) <= 1) { // get cwd
         dirStream = opendir(".");
 
         if ((getcwd(dir, sizeof(dir))) == NULL) {
             perror("Couldn't get absolute of current dir");
-            return 1;
+            return 2;
         }
 
         printDir(dirStream, dir, &dimensions);
@@ -536,13 +542,19 @@ int main (int argc, char *argv[]) {
                     char resolved[PATH_MAX];
                     if ((realpath(argv[i], resolved)) == NULL) {
                         printf("Failed to get true path: %s\n", strerror(errno));
-                        exit(2);
+                        if (!singleDir) {
+                            returnCode = 2;
+                            continue;
+                        } else {
+                            exit(2);
+                        }
                     }
 
                     struct stat st;
                     if ((stat(resolved, &st)) == -1) {
                         printf("Failed to get stats on file: %s\n", strerror(errno));
                         if (!singleDir) {
+                            returnCode = 2;
                             continue;
                         } else {
                             exit(2);
@@ -567,50 +579,43 @@ int main (int argc, char *argv[]) {
             }
         }
 
-        if (hadDir && hadFile && !fullList) {
-            printf("\n");
-        } else if (!hadDir && hadFile) {
-            printf("\n");
-        }
-        if (fullList) printf("\033[A");
-
         // second pass, print dirs and children
         if (hadDir) {
-            int backline = 0;
             for (int i = 1; i < argc; i++) {
                 if (argv[i][0] != '-') {
                     dirStream = opendir(argv[i]);
                     strcpy(dir, argv[i]);
+
+                    if (needSeparator) printf("\n");
 
                     if (dirStream == NULL) {
                         if (errno == ENOTDIR) {
                             continue;
                         }
                         if (errno == ENOENT) {
-                            printf("Couldn't access '%s': %s\n\n", argv[i], strerror(errno));
+                            printf("Couldn't access '%s': %s\n", argv[i], strerror(errno));
+                            needSeparator = 0;
                             if (!singleDir) {
+                                returnCode = 2;
                                 continue;
                             } else {
-                                printf("\033[A");
                                 return 2;
                             }
                         }
 
-                        printf("Couldn't access '%s': %s\n\n", argv[i], strerror(errno));
+                        printf("Couldn't access '%s': %s\n", argv[i], strerror(errno));
+                        needSeparator = 0;
                         if (singleDir) {
-                            printf("\033[A");
                             return 2;
+                        } else {
+                            returnCode = 2;
                         }
                         continue;
                     }
 
                     char bar = useBar ? '/' : '\0';
-                    if (hadFile && hadDir && !fullList) printf("\n");
-                    if (!backline && !hadFile && !singleDir) {
-                        printf("\033[A");
-                        backline = 1;
-                    }
-                    if (fullList && !singleDir) printf("\n");
+                    //if (hadFile && hadDir && !fullList) printf("\n");
+                    //if (fullList && !singleDir) printf("\n");
                     if (!singleDir) {
                         if (useColor) {
                             printf("\033[34;1m%s%c:\033[0m\n", argv[i], bar);
@@ -622,6 +627,7 @@ int main (int argc, char *argv[]) {
                     onlyFail = 0;
 
                     printDir(dirStream, dir, &dimensions);
+                    needSeparator = 1;
                     closedir(dirStream);
                 }
             }
@@ -633,5 +639,5 @@ int main (int argc, char *argv[]) {
 
     }
     free(parsedColors);
-    return 0;
+    return returnCode;
 }
