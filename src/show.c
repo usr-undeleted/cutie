@@ -15,7 +15,7 @@ void helpMenu(char *invocation) {
     printf("\e[1m%s\e[0m command basic usage:\n"
         "   \e[1m%s\e[0m <flags> <file(s)>\n"
         "   \e[3;2mnote that the order of flags and dirs dont matter.\e[0m\n"
-        "   use '%s -' to specificy stdin from -, as long as it is provided.\n"
+        "   use '%s -' to specify stdin from -, as long as it is provided.\n"
         "\e[1m%s\e[0m will print the contents all files you specify.\n\n"
         "flags:\n"
         "   \e[1m-h\e[0m or \e[1m--help\e[0m: show this menu.\n"
