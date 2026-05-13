@@ -6,9 +6,9 @@ README.md contains short plans and more explanation on the project.
 
 ## Concepts
 - Very similar features, with almost exact purposes, should be grouped together neatly.
-- Comments in code are short, and omly used to explain large functions and/or confusing pieces of code.
-- Focus on efficiency and speed when writing code. If an alternative is even slightly faster, use it, as long as it integrates nicely with existant code.
-- Consistent naming for varibales (myVar, myFunction()).
+- Comments in code are short, and only used to explain large functions and/or confusing pieces of code.
+- Focus on efficiency and speed when writing code. If an alternative is even slightly faster, use it, as long as it integrates nicely with existent code.
+- Consistent naming for variables (myVar, myFunction()).
 - Consistent formatting following existent code.
 - Crucial features will always prioritize non-necessary additions.
 - If a shell can do the job of the command, let the shell handle it.
