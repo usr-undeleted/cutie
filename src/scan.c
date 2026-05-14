@@ -581,6 +581,8 @@ int main (int argc, char *argv[]) {
             }
         }
 
+        if (hadFile) printf("\n");
+
         // second pass, print dirs and children
         if (hadDir) {
             for (int i = 1; i < argc; i++) {
@@ -615,9 +617,9 @@ int main (int argc, char *argv[]) {
                         continue;
                     }
 
+                    if (hadFile) printf("\n");
+
                     char bar = useBar ? '/' : '\0';
-                    //if (hadFile && hadDir && !fullList) printf("\n");
-                    //if (fullList && !singleDir) printf("\n");
                     if (!singleDir) {
                         if (useColor) {
                             printf("\033[34;1m%s%c:\033[0m\n", argv[i], bar);
@@ -629,7 +631,6 @@ int main (int argc, char *argv[]) {
                     onlyFail = 0;
 
                     printDir(dirStream, dir, &dimensions);
-                    needSeparator = 1;
                     closedir(dirStream);
                 }
             }
