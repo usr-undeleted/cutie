@@ -1,8 +1,5 @@
 #include "cutie-common.h"
 #include <asm-generic/errno-base.h>
-#include <string.h>
-#include <stdio.h>
-#include <unistd.h>
 #include <fcntl.h>
 #include <errno.h>
 

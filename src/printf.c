@@ -1,6 +1,3 @@
-#include <stdio.h>
-#include <unistd.h>
-#include <stdlib.h>
 #include "cutie-common.h"
 
 void helpMenu(char *invocation) {

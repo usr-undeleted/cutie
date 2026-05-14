@@ -5,6 +5,8 @@
 #include <string.h>
 #include <sys/ioctl.h>
 #include <sys/stat.h>
+#include <limits.h>
+#include <unistd.h>
 
 // will contain a whole directory
 struct entry {

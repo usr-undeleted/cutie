@@ -1,15 +1,10 @@
 #include <asm-generic/errno-base.h>
 #include <dirent.h>
-#include <linux/limits.h>
 #include <pwd.h>
 #include <grp.h>
-#include <stdio.h>
-#include <stdlib.h>
-#include <string.h>
 #include <sys/stat.h>
 #include <time.h>
 #include <errno.h>
-#include <unistd.h>
 #include "cutie-common.h"
 
 // proper spacing for -l categories

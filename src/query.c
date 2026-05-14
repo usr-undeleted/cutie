@@ -1,9 +1,6 @@
 #include "cutie-common.h"
 #include <stdlib.h>
-#include <string.h>
 #include <strings.h>
-#include <unistd.h>
-#include <bits/posix2_lim.h>
 
 // case sensitive (1) or not (0)
 unsigned int beSensitive = 1;
