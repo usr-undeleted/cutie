@@ -24,10 +24,10 @@ Undeleted's life long goal to write their own core utils, following their own de
 - query search (query)
 - file reading (show)
 - install script (build.sh); enable usage with 'chmod +x build.sh'. Instructions on command output. Includes even custom compile flags!!
+- file/dir creation (create); create directories with "name/". should support recursion, with flag or not (create folder/file)
 
 ## Planned:
 - file/dir removal (rm); applies to directories and regular files
-- file/dir creation (create); create directories with "name/". should support recursion, with flag or not (create folder/file)
 - timeout (timeout); :p
 
 ## Compiling:

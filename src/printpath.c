@@ -30,7 +30,7 @@ int main (int argc, char *argv[]) {
     } else {
         for (int i = 1; i < argc; i++) {
             if ((realpath(argv[i], dir)) == NULL) {
-                printf("Couldn't get realpath for '%s': %s\n", argv[i], strerror(errno));
+                fprintf(stderr, "Couldn't get realpath for '%s': %s\n", argv[i], strerror(errno));
                 if (!singleDir) {
                     continue;
                 } else {
@@ -43,7 +43,7 @@ int main (int argc, char *argv[]) {
             if (dirStream != NULL || errno == ENOTDIR) {
                 printf("%s\n", dir);
             } else {
-                printf("Couldn't check '%s': %s\n", dir, strerror(errno));
+                fprintf(stderr, "Couldn't check '%s': %s\n", dir, strerror(errno));
                 if (!singleDir) {
                     continue;
                 } else {

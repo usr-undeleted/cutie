@@ -2,6 +2,7 @@
 #include <dirent.h>
 #include <pwd.h>
 #include <grp.h>
+#include <stdio.h>
 #include <sys/stat.h>
 #include <time.h>
 #include <errno.h>
@@ -211,7 +212,7 @@ void printDir(DIR *dirStream, char *currentDir, struct winsize *dimensions) {
             snprintf(resolved, sizeof(resolved), "%s/%s", currentDir, entries[i].name);
 
             if (lstat(resolved, &stats[i]) != 0) {
-                printf("Failed to get stats on file '%s': %s", resolved, strerror(errno));
+                fprintf(stderr, "Failed to get stats on file '%s': %s", resolved, strerror(errno));
                 if (!singleDir) {
                     returnCode = 2;
                     continue;
@@ -452,7 +453,7 @@ int main (int argc, char *argv[]) {
             if (flags[i] == 5) beRecursive = 1;
         }
     } else {
-        printf("Invalid flag detected. See '%s -h' or '%s --help' for instructions.\n", argv[0], argv[0]);
+        fprintf(stderr, "Invalid flag detected. See '%s -h' or '%s --help' for instructions.\n", argv[0], argv[0]);
         return 2;
     }
 
@@ -543,7 +544,7 @@ int main (int argc, char *argv[]) {
                     hadFile = 1;
                     char resolved[PATH_MAX];
                     if ((realpath(argv[i], resolved)) == NULL) {
-                        printf("Failed to get true path: %s\n", strerror(errno));
+                        fprintf(stderr, "Failed to get true path: %s\n", strerror(errno));
                         if (!singleDir) {
                             returnCode = 2;
                             continue;
@@ -554,7 +555,7 @@ int main (int argc, char *argv[]) {
 
                     struct stat st;
                     if ((stat(resolved, &st)) == -1) {
-                        printf("Failed to get stats on file: %s\n", strerror(errno));
+                        fprintf(stderr, "Failed to get stats on file: %s\n", strerror(errno));
                         if (!singleDir) {
                             returnCode = 2;
                             continue;
@@ -597,7 +598,7 @@ int main (int argc, char *argv[]) {
                             continue;
                         }
                         if (errno == ENOENT) {
-                            printf("Couldn't access '%s': %s\n", argv[i], strerror(errno));
+                            fprintf(stderr, "Couldn't access '%s': %s\n", argv[i], strerror(errno));
                             needSeparator = 0;
                             if (!singleDir) {
                                 returnCode = 2;
@@ -607,7 +608,7 @@ int main (int argc, char *argv[]) {
                             }
                         }
 
-                        printf("Couldn't access '%s': %s\n", argv[i], strerror(errno));
+                        fprintf(stderr, "Couldn't access '%s': %s\n", argv[i], strerror(errno));
                         needSeparator = 0;
                         if (singleDir) {
                             return 2;

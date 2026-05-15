@@ -17,7 +17,7 @@ void helpMenu(char *invocation) {
         "   \e[1m-h\e[0m or \e[1m--help\e[0m: show this menu.\n"
         "   \e[1m-v\e[0m or \e[1m--show-nonprinting\e[0m: use ^ and M- for hidden chars not normally printed.\n"
         "   \e[1m-T\e[0m or \e[1m--show-tabs\e[0m: show tab characters as ^I.\n"
-        "   \e[1m-E\e[0m or \e[1m--show-eof\e[0m: show EOFs as $.\n"
+        "   \e[1m-E\e[0m or \e[1m--show-eof\e[0m: show EOFs as $.\n\n"
         "\e[2;3m%s is part of the cutie project hosted under https://github.com/usr-undeleted/cutie licensed under the GPLv3 license.\e[0m\n",
         invocation, invocation, invocation, invocation, invocation
     );
@@ -146,7 +146,7 @@ int main (int argc, char *argv[]) {
     // handle stdin when alone
     if (argc == 1) {
         if (!processStdin) {
-            printf("Not enough arguments given. See '%s -h' or '%s --help' for instructions.\n", argv[0], argv[0]);
+            fprintf(stderr, "Not enough arguments given. See '%s -h' or '%s --help' for instructions.\n", argv[0], argv[0]);
             return 2;
         } else {
             returned = dump(stdin);
@@ -165,7 +165,7 @@ int main (int argc, char *argv[]) {
 
         int fd = open(argv[i], O_RDONLY);
         if (fd == -1) {
-            printf("Failed to read file '%s': %s\n", argv[i], strerror(errno));
+            fprintf(stderr, "Failed to read file '%s': %s\n", argv[i], strerror(errno));
             if (argc == 1) {
                 return 2;
             } else {
@@ -177,7 +177,7 @@ int main (int argc, char *argv[]) {
         fstat(fd, &st);
         if (S_ISDIR(st.st_mode)) {
             // the fake errno of doom
-            printf("Failed to read file '%s': Is a directory\n", argv[i]);
+            fprintf(stderr, "Failed to read file '%s': Is a directory\n", argv[i]);
             close(fd);
             if (argc == 1) {
                 return 2;

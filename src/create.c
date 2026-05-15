@@ -27,23 +27,14 @@ int main (int argc, char *argv[]) {
     // manage flags
     // we dont use labelflags here cus like, why
     // malloc for a single flag???
-    for (int i = 0; i < argc; i++) {
+    for (int i = 1; i < argc; i++) {
         if (argv[i][0] != '-') continue;
 
-        if (!strcmp(argv[i], "--help")) {
+        if (!strcmp(argv[i], "--help") || !strcmp(argv[i], "-h")) {
             helpMenu(argv[0]);
         } else {
             fprintf(stderr, "Invalid flag detected. See '%s -h' or '%s --help' for instructions.\n", argv[0], argv[0]);
             return 2;
-        }
-
-        for (int j = 0; j < strlen(argv[i]); j++) {
-            if (argv[i][j] == 'h') {
-                helpMenu(argv[0]);
-            } else {
-                fprintf(stderr, "Invalid flag detected. See '%s -h' or '%s --help' for instructions.\n", argv[0], argv[0]);
-                return 2;
-            }
         }
     }
 

@@ -29,7 +29,7 @@ void helpMenu(char *invocation) {
         "   \e[1m%%o\e[0m prints the argument as an octal.\n"
         "   \e[1m%%c\e[0m prints the argument (treated as int) as a char.\n"
         "   \e[1m%%f\e[0m prints the argument as a float.\n"
-        "   \e[1m%%<number>X\e[0m prints <number> padding for N (N being one of the previous formats).\n   if <number> is negative, do left instead of right padding.\n"
+        "   \e[1m%%<number>X\e[0m prints <number> padding for N (N being one of the previous formats).\n   if <number> is negative, do left instead of right padding.\n\n"
         "\e[2;3m%s is part of the cutie project hosted under https://github.com/usr-undeleted/cutie licensed under the GPLv3 license.\e[0m\n",
         invocation, invocation, invocation, invocation
     );
@@ -107,7 +107,7 @@ void print(char *str, int argc, char *argv[], int *argIdx) {
                         }
 
                     } else {
-                        printf("Not enough arguments provided for formatting. See '%s -h' or '%s --help' for instructions.\n", argv[0], argv[0]);
+                        fprintf(stderr, "Not enough arguments provided for formatting. See '%s -h' or '%s --help' for instructions.\n", argv[0], argv[0]);
                         exit(2);
                     }
                     break;
@@ -125,7 +125,7 @@ void print(char *str, int argc, char *argv[], int *argIdx) {
                         }
 
                     } else {
-                        printf("Not enough arguments provided for formatting. See '%s -h' or '%s --help' for instructions.\n", argv[0], argv[0]);
+                        fprintf(stderr, "Not enough arguments provided for formatting. See '%s -h' or '%s --help' for instructions.\n", argv[0], argv[0]);
                         exit(2);
                     }
                     break;
@@ -144,7 +144,7 @@ void print(char *str, int argc, char *argv[], int *argIdx) {
                     }
 
                 } else {
-                    printf("Not enough arguments provided for formatting. See '%s -h' or '%s --help' for instructions.\n", argv[0], argv[0]);
+                    fprintf(stderr, "Not enough arguments provided for formatting. See '%s -h' or '%s --help' for instructions.\n", argv[0], argv[0]);
                     exit(2);
                 }
                 break;
@@ -163,7 +163,7 @@ void print(char *str, int argc, char *argv[], int *argIdx) {
                     }
 
                 } else {
-                    printf("Not enough arguments provided for formatting. See '%s -h' or '%s --help' for instructions.\n", argv[0], argv[0]);
+                    fprintf(stderr, "Not enough arguments provided for formatting. See '%s -h' or '%s --help' for instructions.\n", argv[0], argv[0]);
                     exit(2);
                 }
                 break;
@@ -175,14 +175,14 @@ void print(char *str, int argc, char *argv[], int *argIdx) {
                     if (leftPad) {
                         for (int i = 0; i < width; i++) putchar(' ');
                     }
-                    printf("%o", atoi(argv[(*argIdx)++]));
+                    fprintf(stderr, "%o", atoi(argv[(*argIdx)++]));
 
                     if (width && !leftPad) {
                         for (int i = 0; i < width; i++) putchar(' ');
                     }
 
                 } else {
-                    printf("Not enough arguments provided for formatting. See '%s -h' or '%s --help' for instructions.\n", argv[0], argv[0]);
+                    fprintf(stderr, "Not enough arguments provided for formatting. See '%s -h' or '%s --help' for instructions.\n", argv[0], argv[0]);
                     exit(2);
                 }
                 break;
@@ -201,14 +201,14 @@ void print(char *str, int argc, char *argv[], int *argIdx) {
                     }
 
                 } else {
-                    printf("Not enough arguments provided for formatting. See '%s -h' or '%s --help' for instructions.\n", argv[0], argv[0]);
+                    fprintf(stderr, "Not enough arguments provided for formatting. See '%s -h' or '%s --help' for instructions.\n", argv[0], argv[0]);
                     exit(2);
                 }
                 break;
 
                 default:
                     formatting[fIdx] = *p;
-                    printf("Unknown formatting '%s'. See '%s -h' or '%s --help' for instructions.\n", formatting, argv[0], argv[0]);
+                    fprintf(stderr, "Unknown formatting '%s'. See '%s -h' or '%s --help' for instructions.\n", formatting, argv[0], argv[0]);
                     exit(2);
                     break;
             }
@@ -224,30 +224,21 @@ int main(int argc, char *argv[]) {
     if (!isatty(STDIN_FILENO)) piped = 1;
 
     if (argc <= 1 && !piped) {
-        printf("Not enough arguments given. See '%s -h' or '%s --help' for instructions.\n", argv[0], argv[0]);
+        fprintf(stderr, "Not enough arguments given. See '%s -h' or '%s --help' for instructions.\n", argv[0], argv[0]);
         return 2;
     }
 
     // manage flags
     // we dont use labelflags here cus like, why
     // malloc for a single flag???
-    for (int i = 0; i < argc; i++) {
+    for (int i = 1; i < argc; i++) {
         if (argv[i][0] != '-') continue;
 
-        if (!strcmp(argv[i], "--help")) {
+        if (!strcmp(argv[i], "--help") || !strcmp(argv[i], "-h")) {
             helpMenu(argv[0]);
         } else {
             fprintf(stderr, "Invalid flag detected. See '%s -h' or '%s --help' for instructions.\n", argv[0], argv[0]);
             return 2;
-        }
-
-        for (int j = 0; j < strlen(argv[i]); j++) {
-            if (argv[i][j] == 'h') {
-                helpMenu(argv[0]);
-            } else {
-                fprintf(stderr, "Invalid flag detected. See '%s -h' or '%s --help' for instructions.\n", argv[0], argv[0]);
-                return 2;
-            }
         }
     }
 
