@@ -40,7 +40,7 @@ int main (int argc, char *argv[]) {
 
             dirStream = opendir(dir);
 
-            if (dirStream != NULL || errno == ENOTDIR) {
+            if (dirStream != NULL || errno == ENOTDIR || errno != EPERM) {
                 printf("%s\n", dir);
             } else {
                 fprintf(stderr, "Couldn't check '%s': %s\n", dir, strerror(errno));
