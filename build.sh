@@ -26,11 +26,18 @@ printf "\e[3;36mLatest git commit:\e[0m\n"
 git -C $scriptdir show --summary HEAD | cat
 
 ## show all available programs and get binaries
+## also get longest file for padding
 printf "\n\e[3;36mAvailable programs (.c not included):\e[0m\n"
 binaries=()
+longestWord=0
 for file in $sourcepath; do
-    printf "\e[1m$(basename $(basename "$file" src/) .c)\e[0m  "
-    binaries+=("$(basename $(basename "$file" src/) .c)")
+    processed=$(basename $(basename "$file" src/) .c)
+    printf "\e[1m$processed\e[0m  "
+    binaries+=("$processed")
+
+    if (( ${#processed} > longestWord )); then
+        longestWord=${#processed}
+    fi
 done
 printf "\n\n"
 
@@ -117,7 +124,7 @@ if [[ $allofthem == 1 ]]; then
     # dont ask
     for file in "${binaries[@]}"; do
         printf "\n"
-        printf "\r\e[33;3mCompiling '$file'...\e[0m\e[K  "
+        printf "\r\e[33;3m%-*s\e[0m\e[K" $(( longestWord + 2 + 15 )) "Compiling '$file'..."
         compile $file
     done
 else
@@ -132,7 +139,7 @@ else
             printf "Compile "
             read -n1 -p "'$(basename $(basename "$file" src/) .c)'? (y/n): " input
             if [[ $input == [yY] ]]; then
-                printf "\r\e[33;3mCompiling '$file'...\e[0m\e[K  "
+                printf "\r\e[33;3m%-*s\e[0m\e[K" $(( longestWord + 2 + 15 )) "Compiling '$file'..."
                 compile $file
                 break
 
