@@ -41,6 +41,19 @@ for file in $sourcepath; do
 done
 printf "\n\n"
 
+## see if we have clang. if we dont, try gcc with a warning, and if even thats not present, exit
+if ! command -v clang >/dev/null 2>&1
+then
+    printf "\e[33;1mWARNING! Clang is not present on this system. GCC will be used (if available), but keep in mind that any bugs caused by the use of a different compiler isn't cutie's fault.\e[0m\n\n"
+    compiler="gcc"
+
+    if ! command -v gcc >/dev/null 2>&1
+    then
+        printf "\e[31;1mGCC wasn't found. Cancelling.\e[0m\n"
+        exit 1
+    fi
+fi
+
 ## compile
 compile() {
     local binary="$1"
