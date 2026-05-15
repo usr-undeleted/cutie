@@ -25,10 +25,10 @@ Undeleted's life long goal to write their own core utils, following their own de
 - file reading (show)
 - install script (build.sh); enable usage with 'chmod +x build.sh'. Instructions on command output. Includes even custom compile flags!!
 - file/dir creation (create); create directories with "name/". should support recursion, with flag or not (create folder/file)
+- timeout (timeout); :p
 
 ## Planned:
 - file/dir removal (rm); applies to directories and regular files
-- timeout (timeout); :p
 
 ## Compiling:
 - A script (build.sh) is available for usage to compile specific programs. It is interactive!
