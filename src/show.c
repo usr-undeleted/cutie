@@ -1,5 +1,4 @@
 #include "cutie-common.h"
-#include <asm-generic/errno-base.h>
 #include <fcntl.h>
 #include <errno.h>
 
@@ -189,6 +188,7 @@ int main (int argc, char *argv[]) {
 
         fileDescriptor = fdopen(fd, "r");
         returned = dump(fileDescriptor);
+        fclose(fileDescriptor);
     }
 
     return returned;

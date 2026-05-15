@@ -51,6 +51,7 @@ clang -I src/cutie-common.h -o bin/<program> src/<program>.c
   - Big section of code. Use comment to indicate its function
   - Unclear purpose of something
 - Efficient, small as possible code
+- Focus on good practice ALWAYS
 - Reuse utilities as much as possible; avoid adding new headers
 - If a function is used in more than one bin, put it in a commom lib (src/cutiecommon.h)
 - Vibe coding WILL be rejected. The reviewing WILL be done by humans ONLY. Using AI for coding assitance is acceptable, as long as it respects the rules set.
