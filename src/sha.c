@@ -217,7 +217,7 @@ int main (int argc, char *argv[]) {
 
     unsigned int noFiles = 1;
     unsigned int useStdin = 0;
-    unsigned int stdinHashed = 0;
+    unsigned int stdinHashed = 0; // in omp mode, use this to indicate wether or not to digest stdin
     unsigned char stdinDigest[64];
     if (!isatty(STDIN_FILENO)) {
         useStdin = 1;
@@ -230,8 +230,28 @@ int main (int argc, char *argv[]) {
     int fileCount = 0;
     for (int i = startIdx; i < argc; i++) {
         if (argv[i][0] == '-' && !useStdin) continue;
-        if (!strcmp(argv[i], "-") && useStdin) continue;  // handle stdin separately
+        // handle stdin separately
+        if (!strcmp(argv[i], "-") && useStdin) {
+            stdinHashed = 1;
+            continue;
+        }
+
         fileIndices[fileCount++] = i;
+    }
+    // digest stdin; will only be used once, sadly
+    if (stdinHashed) {
+        void *ctx = malloc(algo.ctxSize);
+        FILE *file = fdopen(STDIN_FILENO, "r");
+        char buf[4096];
+        size_t n;
+        algo.init(ctx);
+
+        while ((n = fread(buf, 1, sizeof(buf), file)) > 0) {
+            algo.update(ctx, buf, n);
+        }
+
+        algo.final(stdinDigest, ctx);
+        free(ctx);
     }
 
     struct result { unsigned char digest[64]; int error; };
@@ -394,11 +414,21 @@ int main (int argc, char *argv[]) {
     #ifdef USE_SORTED
     for (int l = 0; l < fileCount; l++) {
         if (results[l].error) continue;
-        for (int j = 0; j < algo.digestLen; j++)
+        for (int j = 0; j < algo.digestLen; j++) {
             printf("%02x", results[l].digest[j]);
+        }
         printf("  %s\n", argv[fileIndices[l]]);
     }
     free(results);
+    #endif
+
+    #ifdef USE_OMP
+    if (stdinHashed) {
+        for (int k = 0; k < algo.digestLen; k++) {
+            printf("%02x", stdinDigest[k]);
+        }
+        printf("  {stdin}\n");
+    }
     #endif
 
     if (noFiles) {
