@@ -5,6 +5,15 @@
 #include <errno.h>
 #include <unistd.h>
 
+// experimental; split hash processing beetwen multiple threads.
+// not reliable unless youre hashing something like /bin/* files, as there, ive found
+// that multithreading halves the time needed to hash, even at 512 mode!
+// compile with -DUSE_OMP -fopenmp, requires openmp (arch linux, for example, has that pkg)
+// pair with USE_SORTED to make output be actually organized
+#ifdef USE_OMP
+    #include <omp.h>
+#endif
+
 unsigned int showFile = 1;
 
 struct algo {
@@ -210,24 +219,50 @@ int main (int argc, char *argv[]) {
     unsigned int useStdin = 0;
     unsigned int stdinHashed = 0;
     unsigned char stdinDigest[64];
-    FILE *stdin = NULL;
     if (!isatty(STDIN_FILENO)) {
         useStdin = 1;
 
     }
 
+    // collect files
+    #ifdef USE_OMP
+    int fileIndices[argc];
+    int fileCount = 0;
     for (int i = startIdx; i < argc; i++) {
+        if (argv[i][0] == '-' && !useStdin) continue;
+        if (!strcmp(argv[i], "-") && useStdin) continue;  // handle stdin separately
+        fileIndices[fileCount++] = i;
+    }
+
+    struct result { unsigned char digest[64]; int error; };
+    struct result *results = calloc(fileCount, sizeof(*results));
+
+    #endif
+
+    #ifdef USE_OMP
+    #pragma omp parallel for reduction(|:errorCode)
+    for (int i = 0; i < fileCount; i++) {
+        int idx = fileIndices[i];
+        int localError = 0;
+    #else
+    for (int i = startIdx; i < argc; i++) {
+    #endif
+        #ifndef USE_OMP
         if (argv[i][0] == '-' && !useStdin) continue;
         int isStdin = 0;
         if (!strcmp(argv[i], "-") && useStdin) isStdin = 1;
+        #endif
         noFiles = 0;
 
         void *ctx = malloc(algo.ctxSize);
         if (!ctx) {
             perror("Failed to allocate memory");
+            #ifndef USE_OMP
             return 1;
+            #endif
         }
 
+        #ifndef USE_OMP
         int fd = isStdin ? STDIN_FILENO : open(argv[i], O_RDONLY);
         if (!isStdin) {
             if (fd == -1) {
@@ -254,15 +289,55 @@ int main (int argc, char *argv[]) {
                 }
             }
         }
+        #else
+        // open file
+        int fd = open(argv[idx], O_RDONLY);
+        if (fd == -1) {
+            fprintf(stderr, "Failed to read file '%s': %s\n", argv[idx], strerror(errno));
+            results[i].error = 2;
+            localError = 1;
+        }
+        // is dir?
+        if (!localError) {
+            struct stat st;
+            fstat(fd, &st);
+            if (S_ISDIR(st.st_mode)) {
+                fprintf(stderr, "Failed to hash file '%s': Is a directory\n", argv[idx]);
+                close(fd);
+                results[i].error = 2;
+                localError = 1;
+            }
+        }
+        #endif
 
-
-        FILE *file = fdopen(fd, "r");
+        #ifndef USE_OMP
+        FILE *file;
+        file = fdopen(fd, "r");
         if (ferror(file)) {
             fprintf(stderr, "Error reading '%s'\n", argv[i]);
+            #ifdef USE_OMP
+            results[i].error = 1;
+            #endif
+
             errorCode = 1;
             continue;
         }
+        #else
+        FILE *file;
+        if (!localError) {
+            file = fdopen(fd, "r");
+            if (ferror(file)) {
+                fprintf(stderr, "Error reading '%s'\n", argv[idx]);
+                results[i].error = 1;
 
+                localError = 1;
+            }
+        }
+        #endif
+
+        #ifdef USE_OMP
+        if (!localError) {
+        #endif
         char buf[4096];
         size_t n;
         algo.init(ctx);
@@ -270,9 +345,12 @@ int main (int argc, char *argv[]) {
         while ((n = fread(buf, 1, sizeof(buf), file)) > 0) {
             algo.update(ctx, buf, n);
         }
-
+        #ifdef USE_OMP
+        }
+        #endif
         unsigned char digest[64];
 
+        #ifndef USE_OMP
         if (isStdin) {
             if (!stdinHashed) {
                 algo.final(stdinDigest, ctx);
@@ -294,9 +372,34 @@ int main (int argc, char *argv[]) {
         }
 
         showFile ? (isStdin ? printf("  {stdin}\n") : printf("  %s\n", argv[i])) : printf("\n");
+        #else
+        #ifdef USE_SORTED
+        algo.final(results[i].digest, ctx);
+        #endif
+        if (!localError) {
+            algo.final(results[i].digest, ctx);
+            for (int j = 0; j < algo.digestLen; j++) {
+                printf("%02x", results[i].digest[j]);
+            }
+            printf("  %s\n", argv[idx]);
+        }
+        #endif
+        #ifndef USE_OMP
         if (!isStdin) fclose(file);
+        #else
+        if (!localError) fclose(file);
+        #endif
         free(ctx);
     }
+    #ifdef USE_SORTED
+    for (int l = 0; l < fileCount; l++) {
+        if (results[l].error) continue;
+        for (int j = 0; j < algo.digestLen; j++)
+            printf("%02x", results[l].digest[j]);
+        printf("  %s\n", argv[fileIndices[l]]);
+    }
+    free(results);
+    #endif
 
     if (noFiles) {
         fprintf(stderr, "No files provided. See '%s -h' or '%s --help' for instructions.\n", argv[0], argv[0]);

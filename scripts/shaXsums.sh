@@ -60,6 +60,7 @@ while true; do
 
     if [[ $flaginput == [yY] ]]; then
         printf "\n\e[37;3mCurrent base command: '$defaultcompile'\n\e[0;1m"
+        printf "\e[37;3mNote that you may add '-DUSE_OMP -fopenmp=libomp -DUSE_SORTED' and '-DUSE_SORTED' to the compiling command, USE_OMP for multithreading, and USE_SORTED to sort that multithreading.\e[0m\n"
         read -p "Type in all the compile flags you'll use: " extraflags
         printf "\e[A"
         break

@@ -90,3 +90,4 @@ clang -I src/cutie-common.h -o bin/<program> src/<program>.c
 - Flags that take in arguments need to ALWAYS be separate from other flags.
 - If a program needs a compiler flag library to work, the compiling flag should only be used in it (build.sh has an example, for sha).
 - The help function has to ALWAYS be named helpMenu(). Copy it over from other programs and make it consistent.
+- You can 100% have a bit of fun by defining macros that would experimentally change how a binary would work, as long as that customization doesn't weigh in to the default compile size
