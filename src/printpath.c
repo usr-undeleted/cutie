@@ -41,11 +41,9 @@ int main (int argc, char *argv[]) {
     if (argc == 1) {
         dirStream = opendir(".");
 
-        if (getcwd(dir, sizeof(dir)) != NULL) {
-               // copied absolute cwd to dir
-        } else {
-               perror("Couldn't get absolute of current dir");
-               return 1;
+        if (getcwd(dir, sizeof(dir)) == NULL) {
+            perror("Couldn't get absolute of current dir");
+            return 1;
         }
 
         printf("%s\n", dir);
@@ -64,6 +62,7 @@ int main (int argc, char *argv[]) {
 
             dirStream = opendir(dir);
 
+            // print no matter the permissions
             if (dirStream != NULL || errno == ENOTDIR || errno != EPERM) {
                 printf("%s\n", dir);
             } else {

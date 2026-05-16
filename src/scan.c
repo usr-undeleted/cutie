@@ -371,6 +371,7 @@ void scanRecursive (char *currentPath) {
         if (!strcmp(currentFile->d_name, ".") || !strcmp(currentFile->d_name, "..")) continue;
         if (currentFile->d_name[0] == '.' && !dotFiles) continue;
 
+        // form full path
         char fullPath[PATH_MAX];
         if (currentPath[strlen(currentPath) - 1] == '/') {
             snprintf(fullPath, sizeof(fullPath), "%s%s", currentPath, currentFile->d_name);

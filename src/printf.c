@@ -175,7 +175,7 @@ void print(char *str, int argc, char *argv[], int *argIdx) {
                     if (leftPad) {
                         for (int i = 0; i < width; i++) putchar(' ');
                     }
-                    fprintf(stderr, "%o", atoi(argv[(*argIdx)++]));
+                    printf("%o", atoi(argv[(*argIdx)++]));
 
                     if (width && !leftPad) {
                         for (int i = 0; i < width; i++) putchar(' ');
@@ -245,6 +245,7 @@ int main(int argc, char *argv[]) {
     // after invocation and format
     int argIdx = 2;
 
+    // make formatting based on wether stdin exists or not
     char *format;
     char stdbuf[4096];
     if (piped && (!strcmp(argv[1], "-") || !strcmp(argv[1], "--"))) {

@@ -71,7 +71,7 @@ void helpMenu(char *invocation) {
     exit(0);
 }
 
-// only use argv[2+] for flags and files
+// only use argv[2+] (or 1+ if compiled for specific algo) for flags and files
 int main (int argc, char *argv[]) {
     if (argc == 1) {
         fprintf(stderr, "No algorithm provided. See '%s -h' or '%s --help' for instructions.\n", argv[0], argv[0]);
