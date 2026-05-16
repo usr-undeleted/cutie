@@ -131,7 +131,31 @@ void printFile (const char *name, unsigned char type, char *fullPath, int spacin
         ssize_t len = readlink(fullPath, target, sizeof(target) - 1);
         if (len > 0) {
             target[len] = '\0';
-            strcat(printed, "\033[0m -> ");
+            // get coloring for target of symlink
+            struct stat st;
+            size_t colorLen;
+            char *colorCode;
+
+            if (useColor) {
+                stat(fullPath, &st);
+                unsigned char targetType = S_ISDIR(st.st_mode) ? DT_DIR :
+                               S_ISREG(st.st_mode) ? DT_REG :
+                               S_ISLNK(st.st_mode) ? DT_LNK :
+                               S_ISCHR(st.st_mode) ? DT_CHR :
+                               S_ISBLK(st.st_mode) ? DT_BLK :
+                               S_ISSOCK(st.st_mode) ? DT_SOCK :
+                               S_ISFIFO(st.st_mode) ? DT_FIFO : DT_UNKNOWN;
+
+                colorCode = determineColor(name, targetType, &st, &colorLen);
+
+            } else {
+                colorCode = "0";
+                colorLen = 1;
+            }
+
+            strcat(printed, "\e[0m -> \e[");
+            strcat(printed, colorCode);
+            strcat(printed, "m");
             strcat(printed, target);
         }
     }
