@@ -64,11 +64,12 @@ int main (int argc, char *argv[]) {
 
     if (flags != NULL) {
         for (int i = 0; i < input.flagCount; i++) {
-            if (flags[i] == 0) helpMenu(argv[0]);
-
-            if (flags[i] == 1) beSensitive = 0;
-
-            if (flags[i] == 2) showLines = 1;
+            switch (flags[i]) {
+                case 0: helpMenu(argv[0]); break;
+                case 1: beSensitive = 0; break;
+                case 2: showLines = 1; break;
+                default: break;
+            }
         }
     } else {
         fprintf(stderr, "Invalid flag detected. See '%s -h' or '%s --help' for instructions.\n", argv[0], argv[0]);
@@ -213,6 +214,7 @@ int main (int argc, char *argv[]) {
         lastEnd = 0;
         hadMatch = 0;
         // walk trough stdin
+        int previousLine = -1;
         for (int i = 0; i < len; i++) {
 
             // lets us pick the first longest query
@@ -252,7 +254,7 @@ int main (int argc, char *argv[]) {
                     printf("%s", beforeBuf[idx]);
                 }
 
-                if (showLines) printf("\e[107;30m%zu:\e[0m", lineNum);
+                if (showLines && previousLine != lineNum) printf("\e[107;30m%zu:\e[0m", lineNum);
                 printLineNum = 0;
                 printf("%.*s", (int)(i - lastEnd), line + lastEnd);
                 printf("\e[3%d;1m%.*s\e[0m", (queryColors[bestIdx] + 1) % 6 + 1, (int)bestLen, line + i);
@@ -265,6 +267,7 @@ int main (int argc, char *argv[]) {
                 bufPos = 0;
                 doContextAfter = selectedContextAfter > 0 ? 1 : 0;
                 contextAfter = selectedContextAfter;
+                previousLine = lineNum;
             }
         }
         if (hadMatch) {
