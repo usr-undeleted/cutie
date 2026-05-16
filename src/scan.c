@@ -153,10 +153,14 @@ void printFile (const char *name, unsigned char type, char *fullPath, int spacin
                 colorLen = 1;
             }
 
+            /*
             strcat(printed, "\e[0m -> \e[");
             strcat(printed, colorCode);
             strcat(printed, "m");
             strcat(printed, target);
+            */
+            size_t len = strlen(printed);
+            snprintf(printed + len, sizeof(printed) - len, "\e[0m -> \e[%sm%s\e[0m", colorCode, target);
         }
     }
 
@@ -211,8 +215,9 @@ void printDir(DIR *dirStream, char *currentDir, struct winsize *dimensions) {
     // populate entries
     while ((currentFile = readdir(dirStream)) != NULL) {
 
-        if (strlen(currentFile->d_name) > largestWordSize) {
-            largestWordSize = strlen(currentFile->d_name);
+        size_t len = strlen(currentFile->d_name);
+        if (len > largestWordSize) {
+            largestWordSize = len;
         }
 
         // increase the size of the dir's entries
@@ -236,6 +241,10 @@ void printDir(DIR *dirStream, char *currentDir, struct winsize *dimensions) {
 
     char resolved[PATH_MAX];
 
+    linksLargest = 0;
+    ownerLargest = 0;
+    groupLargest = 0;
+    sizeLargest = 0;
     if (fullList) {
         // we lstat once, then store the results here
         struct stat *stats = malloc(dirFileCount * sizeof(struct stat));
@@ -319,7 +328,7 @@ void printDir(DIR *dirStream, char *currentDir, struct winsize *dimensions) {
         for (int i = 0; i < c; i++) {
             colWidth[i] = 0;
 
-            int realIdx;
+            int realIdx = 0;
             for (int j = 0; j < rows; j++) {
                 int idx = i * rows + j;
                 if (idx < visibleN) {
@@ -352,7 +361,6 @@ void printDir(DIR *dirStream, char *currentDir, struct winsize *dimensions) {
                 int len = strlen(entries[realIdx].name);
 
                 if (useBar && entries[realIdx].type == DT_DIR) len++;
-                if (len > colWidth[i]) colWidth[i] = len;
             }
 
             if (idx < visibleN) {
@@ -364,9 +372,7 @@ void printDir(DIR *dirStream, char *currentDir, struct winsize *dimensions) {
                     char *colorCode;
 
                     if (useColor) {
-                        if (lstat(resolved, &st) == 0) {
-                            colorCode = determineColor(entries[realIdx].name, entries[realIdx].type, &st, &colorLen);
-                        }
+                        colorCode = determineColor(entries[realIdx].name, entries[realIdx].type, &st, &colorLen);
                     } else {
                         colorCode = "0";
                         colorLen = 1;
@@ -407,6 +413,13 @@ struct firstPassEntry {
     struct stat st;
 };
 void firstPassPrint(struct firstPassEntry *entries, int count, struct winsize *dimensions) {
+    int nameLens[count];
+    int maxNameLen = 0;
+    for (int i = 0; i < count; i++) {
+        nameLens[i] = strlen(entries[i].name);
+        if (nameLens[i] > maxNameLen) maxNameLen = nameLens[i];
+    }
+
     if (fullList) {
         // get the spacing for owner, groups, links, and size.
         for (int i = 0; i < count; i++) {
@@ -456,19 +469,24 @@ void firstPassPrint(struct firstPassEntry *entries, int count, struct winsize *d
     }
 
     // get column size
-    for (c = n; c >= 1; c--) {
+    // find the longest name and try the theoritical maximum first
+    int startC = n < (dimensions->ws_col / (maxNameLen + 2))
+                 ? n
+                 : (dimensions->ws_col / (maxNameLen + 2));
+
+    for (c = startC; c >= 1; c--) {
         rows = (n + c - 1) / c;
         size_t total = 0;
 
         for (int i = 0; i < c; i++) {
             colWidth[i] = 0;
 
-            int realIdx;
+            int realIdx = 0;
             for (int j = 0; j < rows; j++) {
                 int idx = i * rows + j;
                 if (idx < visibleN) {
                     realIdx = visible[idx];
-                    int len = strlen(entries[realIdx].name);
+                    int len = nameLens[realIdx];
 
                     if (useBar && entries[realIdx].type == DT_DIR) len++;
                     if (len > colWidth[i]) colWidth[i] = len;
@@ -493,10 +511,9 @@ void firstPassPrint(struct firstPassEntry *entries, int count, struct winsize *d
             int realIdx = 0;
             if (idx < visibleN) {
                 realIdx = visible[idx];
-                int len = strlen(entries[realIdx].name);
+                int len = nameLens[realIdx];
 
                 if (useBar && entries[realIdx].type == DT_DIR) len++;
-                if (len > colWidth[i]) colWidth[i] = len;
             }
 
             if (idx < visibleN) {
@@ -576,12 +593,16 @@ int main (int argc, char *argv[]) {
     DIR *dirStream;
     struct winsize dimensions;
     ioctl(STDOUT_FILENO, TIOCGWINSZ, &dimensions);
+    // lets us be lazy
+    setvbuf(stdout, NULL, _IOFBF, BUFSIZ * 2);
     // used by determineColor
-    lsColors = getenv("LS_COLORS");
-    if (!lsColors) {
-        getenv("SCAN_COLORS");
+    if (useColor) {
+        lsColors = getenv("LS_COLORS");
         if (!lsColors) {
-            returnCode = 2;
+            lsColors = getenv("SCAN_COLORS");
+            if (!lsColors) {
+                returnCode = 2;
+            }
         }
     }
 
@@ -639,6 +660,8 @@ int main (int argc, char *argv[]) {
         return 2;
     }
 
+    free(flags);
+
     if (beRecursive) {
         if (argc - totalFlags == 1) {
             scanRecursive(".");
@@ -650,8 +673,6 @@ int main (int argc, char *argv[]) {
 
         return 0;
     }
-
-    free(flags);
 
     if (useColor) {
         // populate offsets
@@ -722,7 +743,11 @@ int main (int argc, char *argv[]) {
         for (int i = 1; i < argc; i++) {
             if (argv[i][0] == '-') continue;
             struct stat st;
-            lstat(argv[i], &st);
+            if (lstat(argv[i], &st) != 0) {
+                fprintf(stderr, "Couldn't access '%s': %s\n", argv[i], strerror(errno));
+                returnCode = 2;
+                continue;
+            }
 
             // if its a directory
             if (S_ISDIR(st.st_mode)) {
@@ -741,6 +766,8 @@ int main (int argc, char *argv[]) {
         if (firstPassCount > 0) {
             firstPassPrint(firstPass, firstPassCount, &dimensions);
             if (hadDir) printf("\n");
+        } else {
+            free(firstPass);
         }
 
         if (hadFile && hadDir) printf("\n");
