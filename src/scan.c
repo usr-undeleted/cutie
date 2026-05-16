@@ -83,15 +83,21 @@ void printFile (struct entry entry, char *fullPath, int spacing, struct stat *st
         // usr perms
         perms[1] = st->st_mode & S_IRUSR ? 'r' : '-';
         perms[2] = st->st_mode & S_IWUSR ? 'w' : '-';
-        perms[3] = st->st_mode & S_IXUSR ? 'x' : '-';
+        perms[3] = (st->st_mode & S_ISUID) ?
+            ((st->st_mode & S_IXUSR) ? 's' : 'S') :
+            ((st->st_mode & S_IXUSR) ? 'x' : '-');
         // group
         perms[4] = st->st_mode & S_IRGRP ? 'r' : '-';
         perms[5] = st->st_mode & S_IWGRP ? 'w' : '-';
-        perms[6] = st->st_mode & S_IXGRP ? 'x' : '-';
+        perms[6] = (st->st_mode & S_ISGID) ?
+            ((st->st_mode & S_IXGRP) ? 's' : 'S') :
+            ((st->st_mode & S_IXGRP) ? 'x' : '-');
         // others
         perms[7] = st->st_mode & S_IROTH ? 'r' : '-';
         perms[8] = st->st_mode & S_IWOTH ? 'w' : '-';
-        perms[9] = st->st_mode & S_IXOTH ? 'x' : '-';
+        perms[9] = (st->st_mode & S_ISVTX) ?
+            ((st->st_mode & S_IXOTH) ? 't' : 'T') :
+            ((st->st_mode & S_IXOTH) ? 'x' : '-');
         perms[10] = '\0';
         links = st->st_nlink;
         struct passwd *pw = getpwuid(st->st_uid);
@@ -582,7 +588,7 @@ int main (int argc, char *argv[]) {
             }
         }
 
-        if (hadFile) printf("\n");
+        if (hadFile && hadDir) printf("\n");
 
         // second pass, print dirs and children
         if (hadDir) {
