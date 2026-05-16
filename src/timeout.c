@@ -2,7 +2,6 @@
 #include <signal.h>
 #include <string.h>
 #include <sys/wait.h>
-#include <errno.h>
 
 pid_t childPid;
 int killSig = SIGTERM;
@@ -137,7 +136,7 @@ int main (int argc, char *argv[]) {
 
     pid_t pid = fork();
     if (pid < 0) {
-        fprintf(stderr, "Couldn't fork program.\n");
+        perror("Couldn't fork program");
         return 1;
     }
     childPid = pid;
@@ -148,7 +147,7 @@ int main (int argc, char *argv[]) {
         int ret = 1;
         ret = execvp(argv[(timeoutPos + 1)], &argv[(timeoutPos + 1)]);
         if (ret == -1) {
-            fprintf(stderr, "Couldn't execute command: %s\n", strerror(errno));
+            perror("Couldn't execute command");
             return 2;
         }
     } else {

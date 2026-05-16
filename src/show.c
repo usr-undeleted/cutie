@@ -169,6 +169,7 @@ int main (int argc, char *argv[]) {
             if (argc == 1) {
                 return 2;
             } else {
+                returned = 2;
                 continue;
             }
         }
@@ -182,6 +183,7 @@ int main (int argc, char *argv[]) {
             if (argc == 1) {
                 return 2;
             } else {
+                returned = 2;
                 continue;
             }
         }

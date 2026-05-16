@@ -26,10 +26,10 @@ Undeleted's life long goal to write their own core utils, following their own de
 - file/dir creation (create); create directories with "name/". should support recursion, with flag or not (create folder/file)
 - timeout (timeout); :p
 - install script (build.sh); enable usage with 'chmod +x build.sh'. Instructions on command output. Includes even custom compile flags set by user!!
+- shaXsum calculation (sha); includes all sha calculations supported by gnu's shaXsums, see planned objective for optional QOF scripts
 
 ## Planned:
 - file/dir removal (rm); applies to directories and regular files
-- shaXsum calculation (shaXsum)
 - move/rename files (mv or move, ive got to decide)
 - create links like syms or hardlinks (link)
 - modify permissions on a file (chmod or something else)
@@ -44,6 +44,9 @@ note that the flags here arent gonna be stackable, so they each will have to be 
 arguments that expect input would be, like (f is the flag starter, X expects 1 arg, Y expects 2):
 "-fXY x y y"  
 note that only stdin shall be provided, because mixing I/O when, again, the shell can do it, is just dumb...  
+- Optional QOF scripts that would do extend or delimit the functionalities of specific programs, the planned ones being:
+1. Take the sha source file, and delimit its binary to a single algorithm.
+2. If a program here is simply gnu's equivalent, compile it with gnu's naming. 
 
 ## Compiling:
 - A script (build.sh) is available for usage to compile specific programs. It is interactive!
@@ -72,4 +75,12 @@ clang -I src/cutie-common.h -o bin/<program> src/<program>.c
 - Vibe coding WILL be rejected. The reviewing WILL be done by humans ONLY. Using AI for coding assitance is acceptable, as long as it respects the rules set.
 - Errors should follow this standard:
   - 1: Code issue, like failed malloc, etc.
-  - 2+: User issue, like permissions, non-existent file, etc.
+  - 2: User issue, like permissions, non-existent file, etc.
+  - 3: If you can, use perror, if not, use fprintf on stderr.
+### Specific design decisions
+- Anything starting with - is a flag, with the only exceptions being something like create. Note that (with exceptions mentioned forwards) this means that no matter where you place a flag in the invocation, it should work.
+- Stdin is represented by a '-'.
+- Unless the program shouldn't due to its own intricacies (like a flag requiring an argument), use labelFlags(). Programs that only need --help and a special flag shouldn't use labelFlags(), but use the implementantions in things like printpath or printf.
+- Flags that take in arguments need to ALWAYS be separate from other flags.
+- If a program needs a compiler flag library to work, the compiling flag should only be used in it (build.sh has an example, for sha).
+- The help function has to ALWAYS be named helpMenu(). Copy it over from other programs and make it consistent.

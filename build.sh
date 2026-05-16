@@ -13,6 +13,8 @@ error=2
 hadsuccess=0
 # custom compile flags
 extraflags=""
+# if they want to strip the binaries
+stripbinary=0
 # the compiled command, use this to refer to the default command
 defaultcompile="$compiler -I src/cutie-common.h -o bin/<program> src/<program>.c"
 
@@ -57,7 +59,13 @@ fi
 ## compile
 compile() {
     local binary="$1"
-    $compiler -I src/cutie-common.h -o $scriptdir/bin/$(basename "$binary" .c) $scriptdir/src/$binary.c $extraflags
+    # extra parameters for when a single program needs a specific lib
+    extraparams=""
+    if [[ "$binary" == sha ]]; then
+        extraparams="-lcrypto -Wno-deprecated-declarations"
+    fi
+
+    $compiler -I src/cutie-common.h -o $scriptdir/bin/$(basename "$binary" .c) $scriptdir/src/$binary.c $extraparams $extraflags
     if [ $? -ne 0 ]; then
         printf "\e[31;1mFailed to compile $binary.\e[0m"
         if [ $hadsuccess -eq 1 ]; then
@@ -69,6 +77,24 @@ compile() {
     hadsuccess=1
     if [ $error -ne 1 ]; then
         error=0
+    fi
+
+    # strippers... yikes!
+    if (( stripbinary == 1 )); then
+        printf " \e[33;3%-*s\e[0m" $(( longestWord + 15 + 2)) "mstripping '$binary'..."
+        strip "bin/$binary"
+    fi
+    if [ $? -ne 0 ]; then
+        printf " \e[31mfailed to strip $binary.\e[0m"
+        if [ $hadsuccess -eq 1 ]; then
+                error=1
+        fi
+    else
+        printf " \e[32m'$binary' stripped succesfully!\e[0m"
+    fi
+
+    if [[ "$binary" == sha ]]; then
+        printf "\n\e[37;3mnote that we are using deprecated functions for sha; if you're willing to, replace the funcs with EVP ones.\e[0m"
     fi
 }
 
@@ -93,17 +119,17 @@ fi
 printf "\e[1m\n"
 allofthem=0
 while true; do
-    read -n1 -p "Would you like to compile everything at once? (y/n): " allinput
+    read -n1 -p "Would you like to compile everything at once? (y/N): " allinput
     # handle newlines
     if [[ -z $allinput || $allinput == $'\n' ]]; then
         printf "\e[A"
     fi
 
-    if [[ $allinput == [yY] ]]; then
+    if [[  $allinput == [yY] ]]; then
         allofthem=1
         printf "\nCompiling everything!\n"
         break
-    elif [[ $allinput == [nN] ]]; then
+    elif [[ -z $input || $allinput == [nN] ]]; then
         break
     else
         printf "\r"
@@ -111,10 +137,30 @@ while true; do
 done
 printf "\e[0m"
 
+# if they want to strip the binaries
+printf "\e[1m\n"
+while true; do
+    read -n1 -p "Would you like to strip the binaries? (y/N): " flaginput
+    # handle newlines
+    if [[ -z $flaginput || $flaginput == $'\n' ]]; then
+        printf "\e[A"
+    fi
+
+    if [[ $flaginput == [yY] ]]; then
+        stripbinary=1
+        break
+    elif [[ -z $input || $flaginput == [nN] ]]; then
+        break
+    else
+        printf "\r"
+    fi
+done
+printf "\e[0m\n"
+
 # if they want to add compile flags
 printf "\e[1m\n"
 while true; do
-    read -n1 -p "Would you like to add custom compile flags? (y/n): " flaginput
+    read -n1 -p "Would you like to add custom compile flags? (y/N): " flaginput
     # handle newlines
     if [[ -z $flaginput || $flaginput == $'\n' ]]; then
         printf "\e[A"
@@ -125,7 +171,7 @@ while true; do
         read -p "Type in all the compile flags you'll use: " extraflags
         printf "\e[A"
         break
-    elif [[ $flaginput == [nN] ]]; then
+    elif [[ -z $input || $flaginput == [nN] ]]; then
         break
     else
         printf "\r"
@@ -179,4 +225,5 @@ elif [[ $error == 1 ]]; then
 else
     printf "\e[31;1mDid not compile a single program.\e[0m\n"
 fi
+
 exit $error
