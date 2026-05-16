@@ -4,7 +4,7 @@
 # compiler
 compiler="clang"
 # where the script is located
-scriptdir=$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" &> /dev/null && pwd)
+scriptdir=$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")""/.." &> /dev/null && pwd)
 scriptpath="$scriptpath/$(basename -- "${BASH_SOURCE[0]}")"
 # where to search source dirs
 sourcepath="$scriptdir/src/*.c"
@@ -16,7 +16,7 @@ extraflags=""
 # if they want to strip the binaries
 stripbinary=0
 # the compiled command, use this to refer to the default command
-defaultcompile="$compiler -I src/cutie-common.h -o bin/<program> src/<program>.c"
+defaultcompile="$compiler -I $scriptdir/src/cutie-common.h -o $scriptdir/bin/<program> $scriptdir/src/<program>.c"
 
 ## intro
 printf "\e[34;1;3m=== Interactive cutie compiling script! ===\e[0m\n\n"
@@ -83,14 +83,15 @@ compile() {
     if (( stripbinary == 1 )); then
         printf " \e[33;3%-*s\e[0m" $(( longestWord + 15 + 2)) "mstripping '$binary'..."
         strip "bin/$binary"
-    fi
-    if [ $? -ne 0 ]; then
-        printf " \e[31mfailed to strip $binary.\e[0m"
-        if [ $hadsuccess -eq 1 ]; then
-                error=1
+
+        if [ $? -ne 0 ]; then
+            printf " \e[31mfailed to strip $binary.\e[0m"
+            if [ $hadsuccess -eq 1 ]; then
+                    error=1
+            fi
+        else
+            printf " \e[32m'$binary' stripped succesfully!\e[0m"
         fi
-    else
-        printf " \e[32m'$binary' stripped succesfully!\e[0m"
     fi
 
     if [[ "$binary" == sha ]]; then
@@ -111,11 +112,13 @@ fi
 
 ## ask the user what they want to compile
 printf "\e[3;36mNow, pick which programs you'll compile. They'll all be compiled to $scriptdir/bin/.\e[0m"
+
+## make bin if it hasnt been made
 if [ ! -d "$scriptdir/bin" ]; then
     mkdir $scriptdir/bin
 fi
 
-# if they want to compile everything at once
+## if they want to compile everything at once
 printf "\e[1m\n"
 allofthem=0
 while true; do
@@ -150,6 +153,7 @@ while true; do
         stripbinary=1
         break
     elif [[ -z $input || $flaginput == [nN] ]]; then
+        stripbinary=0
         break
     else
         printf "\r"
@@ -157,7 +161,7 @@ while true; do
 done
 printf "\e[0m\n"
 
-# if they want to add compile flags
+## if they want to add compile flags
 printf "\e[1m\n"
 while true; do
     read -n1 -p "Would you like to add custom compile flags? (y/N): " flaginput

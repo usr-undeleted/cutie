@@ -9,9 +9,9 @@
 
 Undeleted's life long goal to write their own core utils, following their own design principles, all in C alongside assembly (once i actually learn it-).  
 
-### Will strive for:
+## Will strive for:
 - Reusing as many utilities in the code as possible. Move commonly used functions to a common lib.
-- Only type of fancy you'll see is colors. *exclude build.sh, of course*
+- Only type of fancy you'll see is colors. *excluding scripts*
 - Only using what you need.
 - Keep It Simple, Stupid!!
 - Bin naming should have its name instantly obvious to the user. "create something", "scan something, a directory"
@@ -26,7 +26,13 @@ Undeleted's life long goal to write their own core utils, following their own de
 - file/dir creation (create); create directories with "name/". should support recursion, with flag or not (create folder/file)
 - timeout (timeout); :p
 - install script (build.sh); enable usage with 'chmod +x build.sh'. Instructions on command output. Includes even custom compile flags set by user!!
-- shaXsum calculation (sha); includes all sha calculations supported by gnu's shaXsums, see planned objective for optional QOF scripts
+- shaXsum calculation (sha); includes all sha calculations supported by gnu's shaXsums, see the section under for scripts for context on the big walls of code.
+
+## Scripts: 
+- Scripts are provided under 'scripts/'. 
+1. 'build.sh' is the script used for compiling, see the section for compiling.
+2. 'shaXsum.sh' takes the sha.c source file, and limits its algorithm capabilities to a single algorithm, making for a smaller binary.
+3. (more to be added, see plans)
 
 ## Planned:
 - file/dir removal (rm); applies to directories and regular files
@@ -45,18 +51,17 @@ arguments that expect input would be, like (f is the flag starter, X expects 1 a
 "-fXY x y y"  
 note that only stdin shall be provided, because mixing I/O when, again, the shell can do it, is just dumb...  
 - Optional QOF scripts that would do extend or delimit the functionalities of specific programs, the planned ones being:
-1. Take the sha source file, and delimit its binary to a single algorithm.
-2. If a program here is simply gnu's equivalent, compile it with gnu's naming. 
+1. If a program here is simply gnu's equivalent, compile it with gnu's naming. 
 
 ## Compiling:
-- A script (build.sh) is available for usage to compile specific programs. It is interactive!
+- A script (build.sh) is available in scripts/ for usage to compile specific programs. It is interactive!
 - To use it, run:
 ```
-chmod +x build.sh
+chmod +x scripts/build.sh
 ```
 - That will make the script executable. Now, to execute it:
 ```
-./build.sh
+./scripts/build.sh
 ```
 ### Incase you need to compile manually:
 - ALWAYS use clang; testing is done exclusively with clang
@@ -72,7 +77,7 @@ clang -I src/cutie-common.h -o bin/<program> src/<program>.c
 - Focus on good practice ALWAYS
 - Reuse utilities as much as possible; avoid adding new headers
 - If a function is used in more than one bin, put it in a commom lib (src/cutiecommon.h)
-- Vibe coding WILL be rejected. The reviewing WILL be done by humans ONLY. Using AI for coding assitance is acceptable, as long as it respects the rules set.
+- Vibe coding WILL be rejected. The reviewing WILL be done by humans ONLY. Using AI for coding assistance is acceptable, as long as it respects the rules set.
 - Errors should follow this standard:
   - 1: Code issue, like failed malloc, etc.
   - 2: User issue, like permissions, non-existent file, etc.

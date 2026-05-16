@@ -3,6 +3,7 @@
 #include "cutie-common.h"
 #include <fcntl.h>
 #include <errno.h>
+#include <unistd.h>
 
 unsigned int showFile = 1;
 
@@ -16,35 +17,35 @@ struct algo {
 
 void helpMenu(char *invocation) {
     printf("\e[1m%s\e[0m command basic usage:\n", invocation);
-    #if defined(SHA256)
+    #if defined(SHA256D)
         printf(
             "   \e[1m%s\e[0m <flags> <files>\n"
             "   \e[1m%s\e[0m will find the hash for the algorithm SHA-256\n",
             invocation, invocation
         );
 
-    #elif defined(SHA512)
+    #elif defined(SHA512D)
         printf(
             "   \e[1m%s\e[0m <flags> <files>\n"
             "   \e[1m%s\e[0m will find the hash for the algorithm SHA-512\n",
             invocation, invocation
         );
 
-    #elif defined(SHA1)
+    #elif defined(SHA1D)
         printf(
             "   \e[1m%s\e[0m <flags> <files>\n"
             "   \e[1m%s\e[0m will find the hash for the algorithm SHA-1\n",
             invocation, invocation
         );
 
-    #elif defined(SHA224)
+    #elif defined(SHA224D)
         printf(
             "   \e[1m%s\e[0m <flags> <files>\n"
             "   \e[1m%s\e[0m will find the hash for the algorithm SHA-224\n",
             invocation, invocation
         );
 
-    #elif defined(SHA224)
+    #elif defined(SHA384D)
         printf(
             "   \e[1m%s\e[0m <flags> <files>\n"
             "   \e[1m%s\e[0m will find the hash for the algorithm SHA-384\n",
@@ -60,12 +61,12 @@ void helpMenu(char *invocation) {
     #endif
 
     printf(
-        "\e[1m%s\e[0m will make the hash for all files specified.\n"
-        "\e[1m%s\e[0m note that the order of flags and files don't matter.\n\n"
+        "\e[1m%s\e[0m will make the hash for all files specified. If stdin is provided and you specify '-' as one of the arguments, print stdin's hash. Stdin can be used more than once without providing '\\0' hash after the first hash.\n"
+        "note that the order of flags and files don't matter.\n\n"
         "flags:\n"
         "   \e[1m-h\e[0m or \e[1m--help\e[0m: show this menu.\n\n"
         "\e[2;3m%s is part of the cutie project hosted under https://github.com/usr-undeleted/cutie licensed under the GPLv3 license.\e[0m\n",
-        invocation, invocation, invocation
+        invocation, invocation
     );
     exit(0);
 }
@@ -100,10 +101,14 @@ int main (int argc, char *argv[]) {
     };
 
     int *flags;
-    #if defined(SHA256) || defined(SHA512) || defined(SHA1) || defined(SHA224) || defined(SHA384)
+    // start idx is used later, not related to flags
+    int startIdx;
+    #if defined(SHA256D) || defined(SHA512D) || defined(SHA1D) || defined(SHA224D) || defined(SHA384D)
         flags = labelFlags(argc - 1, argv + 1, &input);
+        startIdx = 1;
     #else
         flags = labelFlags(argc - 2, argv + 2, &input);
+        startIdx = 2;
     #endif
 
     if (flags != NULL) {
@@ -122,35 +127,35 @@ int main (int argc, char *argv[]) {
     // define these to make the binary smaller by packing
     // a single algorithm
     struct algo algo;
-    #if defined(SHA256)
+    #if defined(SHA256D)
         algo.digestLen = SHA256_DIGEST_LENGTH;
         algo.init = (void(*)(void*))SHA256_Init;
         algo.update = (void(*)(void*, const void*, size_t))SHA256_Update;
         algo.final = (void(*)(unsigned char*, void*))SHA256_Final;
         algo.ctxSize = sizeof(SHA256_CTX);
 
-    #elif defined(SHA512)
+    #elif defined(SHA512D)
         algo.digestLen = SHA512_DIGEST_LENGTH;
         algo.init = (void(*)(void*))SHA512_Init;
         algo.update = (void(*)(void*, const void*, size_t))SHA512_Update;
         algo.final = (void(*)(unsigned char*, void*))SHA512_Final;
         algo.ctxSize = sizeof(SHA512_CTX);
 
-    #elif defined(SHA1)
+    #elif defined(SHA1D)
         algo.digestLen = SHA_DIGEST_LENGTH;
         algo.init = (void(*)(void*))SHA1_Init;
         algo.update = (void(*)(void*, const void*, size_t))SHA1_Update;
         algo.final = (void(*)(unsigned char*, void*))SHA1_Final;
         algo.ctxSize = sizeof(SHA_CTX);
 
-    #elif defined(SHA224)
+    #elif defined(SHA224D)
         algo.digestLen = SHA224_DIGEST_LENGTH;
         algo.init = (void(*)(void*))SHA224_Init;
         algo.update = (void(*)(void*, const void*, size_t))SHA224_Update;
         algo.final = (void(*)(unsigned char*, void*))SHA224_Final;
         algo.ctxSize = sizeof(SHA256_CTX);
 
-    #elif defined(SHA384)
+    #elif defined(SHA384D)
         algo.digestLen = SHA384_DIGEST_LENGTH;
         algo.init = (void(*)(void*))SHA384_Init;
         algo.update = (void(*)(void*, const void*, size_t))SHA384_Update;
@@ -201,16 +206,20 @@ int main (int argc, char *argv[]) {
         }
     #endif
 
-    int startIdx;
-    #if defined(SHA256) || defined(SHA512) || defined(SHA1) || defined(SHA224) || defined(SHA384)
-        startIdx = 1;
-    #else
-        startIdx = 2;
-    #endif
-
     unsigned int noFiles = 1;
+    unsigned int useStdin = 0;
+    unsigned int stdinHashed = 0;
+    unsigned char stdinDigest[64];
+    FILE *stdin = NULL;
+    if (!isatty(STDIN_FILENO)) {
+        useStdin = 1;
+
+    }
+
     for (int i = startIdx; i < argc; i++) {
-        if (argv[i][0] == '-') continue;
+        if (argv[i][0] == '-' && !useStdin) continue;
+        int isStdin = 0;
+        if (!strcmp(argv[i], "-") && useStdin) isStdin = 1;
         noFiles = 0;
 
         void *ctx = malloc(algo.ctxSize);
@@ -219,28 +228,30 @@ int main (int argc, char *argv[]) {
             return 1;
         }
 
-        int fd = open(argv[i], O_RDONLY);
-        if (fd == -1) {
-            fprintf(stderr, "Failed to read file '%s': %s\n", argv[i], strerror(errno));
-            if (argc == 1) {
-                return 2;
-            } else {
-                errorCode = 2;
-                continue;
+        int fd = isStdin ? STDIN_FILENO : open(argv[i], O_RDONLY);
+        if (!isStdin) {
+            if (fd == -1) {
+                fprintf(stderr, "Failed to read file '%s': %s\n", argv[i], strerror(errno));
+                if (argc == 1) {
+                    return 2;
+                } else {
+                    errorCode = 2;
+                    continue;
+                }
             }
-        }
-        // is dir?
-        struct stat st;
-        fstat(fd, &st);
-        if (S_ISDIR(st.st_mode)) {
-            // the fake errno of doom
-            fprintf(stderr, "Failed to hash file '%s': Is a directory\n", argv[i]);
-            close(fd);
-            if (argc == 1) {
-                return 2;
-            } else {
-                errorCode = 2;
-                continue;
+            // is dir?
+            struct stat st;
+            fstat(fd, &st);
+            if (S_ISDIR(st.st_mode)) {
+                // the fake errno of doom
+                fprintf(stderr, "Failed to hash file '%s': Is a directory\n", argv[i]);
+                close(fd);
+                if (argc == 1) {
+                    return 2;
+                } else {
+                    errorCode = 2;
+                    continue;
+                }
             }
         }
 
@@ -261,13 +272,29 @@ int main (int argc, char *argv[]) {
         }
 
         unsigned char digest[64];
-        algo.final(digest, ctx);
-        for (int j = 0; j < algo.digestLen; j++) {
-            printf("%02x", digest[j]);
+
+        if (isStdin) {
+            if (!stdinHashed) {
+                algo.final(stdinDigest, ctx);
+                for (int j = 0; j < algo.digestLen; j++) {
+                    printf("%02x", stdinDigest[j]);
+                }
+                stdinHashed = 1;
+            } else {
+                for (int j = 0; j < algo.digestLen; j++) {
+                    printf("%02x", stdinDigest[j]);
+                }
+            }
+
+        } else {
+            algo.final(digest, ctx);
+            for (int j = 0; j < algo.digestLen; j++) {
+                printf("%02x", digest[j]);
+            }
         }
 
-        showFile ? printf("  %s\n", argv[i]) : printf("\n");
-        fclose(file);
+        showFile ? (isStdin ? printf("  {stdin}\n") : printf("  %s\n", argv[i])) : printf("\n");
+        if (!isStdin) fclose(file);
         free(ctx);
     }
 
