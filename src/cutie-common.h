@@ -114,7 +114,7 @@ struct colorEntry *parsedColors;
 size_t parsedColorCount;
 const char *lsColors;
 
-char *determineColor(struct entry entry, struct stat *st, size_t *colorLen) {
+char *determineColor(const char *name, unsigned char type,  struct stat *st, size_t *colorLen) {
     *colorLen = 1;
     if (!useColor || !lsColors || st == NULL) {
         return "0";
@@ -123,34 +123,34 @@ char *determineColor(struct entry entry, struct stat *st, size_t *colorLen) {
     size_t start, end;
     unsigned int hadMatch = 0;
 
-    if (entry.type == DT_DIR) {
+    if (type == DT_DIR) {
         *colorLen = 4;
         return "34;1";
 
-    } else if (entry.type == DT_LNK) {
+    } else if (type == DT_LNK) {
         *colorLen = 4;
         return "36;1";
 
     } else if (S_ISREG(st->st_mode)
         && (st->st_mode & (S_IXUSR | S_IXGRP | S_IXOTH))
-        && entry.type != DT_DIR) {
+        && type != DT_DIR) {
             *colorLen = 4;
         return "32;1";
 
-    } else if (entry.type == DT_BLK || entry.type == DT_CHR) {
+    } else if (type == DT_BLK || type == DT_CHR) {
         *colorLen = 7;
         return "40;33;1";
 
-    } else if (entry.type == DT_SOCK) {
+    } else if (type == DT_SOCK) {
         *colorLen = 4;
         return "0;35";
 
-    } else if (entry.type == DT_FIFO) {
+    } else if (type == DT_FIFO) {
         *colorLen = 4;
         return "0;33";
 
-    } else if (entry.type == DT_UNKNOWN || entry.type == DT_REG) {
-        const char *extension = strrchr(entry.name, '.');
+    } else if (type == DT_UNKNOWN || type == DT_REG) {
+        const char *extension = strrchr(name, '.');
         if (!extension) {
             return "0";
         }

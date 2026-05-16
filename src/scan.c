@@ -1,5 +1,7 @@
 #include <asm-generic/errno-base.h>
 #include <dirent.h>
+#include <fcntl.h>
+#include <linux/limits.h>
 #include <pwd.h>
 #include <grp.h>
 #include <stdio.h>
@@ -50,13 +52,13 @@ int cmpEntries(const void *a, const void *b) {
     return strcasecmp(((struct entry *)a)->name, ((struct entry *)b)->name);
 }
 
-void printFile (struct entry entry, char *fullPath, int spacing, struct stat *st) {
-    if (entry.name[0] == '.' && !dotFiles) {
+void printFile (const char *name, unsigned char type, char *fullPath, int spacing, struct stat *st) {
+    if (name[0] == '.' && !dotFiles) {
         return;
     }
 
     // are we gonna wrap this?
-    char apostrophe = strchr(entry.name, ' ') ? 39 : '\0';
+    char apostrophe = strchr(name, ' ') ? 39 : '\0';
     // toggles
     char bar = '\0';
 
@@ -113,18 +115,18 @@ void printFile (struct entry entry, char *fullPath, int spacing, struct stat *st
 
     char printed[5000];
     size_t colorLen;
-    char *colorCode = determineColor(entry, st, &colorLen);
+    char *colorCode = determineColor(name, type, st, &colorLen);
     if (!colorCode) colorCode = "0";
 
     // bar + apostrophes, color code
     if (apostrophe == '\0') {
-        snprintf(printed, sizeof(printed), "\033[%.*sm%s%c", (int)colorLen, colorCode, entry.name, bar);
+        snprintf(printed, sizeof(printed), "\033[%.*sm%s%c", (int)colorLen, colorCode, name, bar);
     } else {
         snprintf(printed, sizeof(printed), "\033[%.*sm%c%s%c%c", (int)colorLen, colorCode,
-            apostrophe, entry.name, apostrophe, bar);
+            apostrophe, name, apostrophe, bar);
     }
 
-    if (entry.type == DT_LNK) {
+    if (type == DT_LNK) {
         char target[NAME_MAX + 10];
         ssize_t len = readlink(fullPath, target, sizeof(target) - 1);
         if (len > 0) {
@@ -153,7 +155,7 @@ void printFile (struct entry entry, char *fullPath, int spacing, struct stat *st
             size_t nameStart;
             for (int i = 0; i < strlen(fullPath); i++) {
                 if (fullPath[i] == '/') {
-                    if (!strcmp(fullPath + (i + 1), entry.name)) {
+                    if (!strcmp(fullPath + (i + 1), name)) {
                         nameStart = i + 1;
                         break;
                     }
@@ -164,7 +166,7 @@ void printFile (struct entry entry, char *fullPath, int spacing, struct stat *st
             // then we print file
             printf("%s", printed);
             // do we need to print a bar?
-            if (useBar && entry.type == DT_DIR) putchar('/');
+            if (useBar && type == DT_DIR) putchar('/');
             printf("\033[0m\n");
         }
     }
@@ -213,6 +215,12 @@ void printDir(DIR *dirStream, char *currentDir, struct winsize *dimensions) {
     if (fullList) {
         // we lstat once, then store the results here
         struct stat *stats = malloc(dirFileCount * sizeof(struct stat));
+        long int totalBlocks = 0;
+        if (stats == NULL) {
+            perror("Failed to allocate memory");
+            exit(1);
+        }
+
         // get the spacing for owner, groups, links, and size.
         for (int i = 0; i < dirFileCount; i++) {
             snprintf(resolved, sizeof(resolved), "%s/%s", currentDir, entries[i].name);
@@ -239,12 +247,17 @@ void printDir(DIR *dirStream, char *currentDir, struct winsize *dimensions) {
 
             len = snprintf(NULL, 0, "%zu", stats[i].st_size);
             if (len > sizeLargest) sizeLargest = len;
+
+            totalBlocks += stats[i].st_blocks;
         }
+
+        // show total blocks per directory
+        printf("total %ld\n", totalBlocks / 2);
 
         // call printFile
         for (int i = 0; i < dirFileCount; i++) {
             snprintf(resolved, sizeof(resolved), "%s/%s", currentDir, entries[i].name);
-            printFile(entries[i], resolved, 0, &stats[i]);
+            printFile(entries[i].name, entries[i].type, resolved, 0, &stats[i]);
         }
         // never forget!
         free(entries);
@@ -328,7 +341,7 @@ void printDir(DIR *dirStream, char *currentDir, struct winsize *dimensions) {
 
                     if (useColor) {
                         if (lstat(resolved, &st) == 0) {
-                            colorCode = determineColor(entries[realIdx], &st, &colorLen);
+                            colorCode = determineColor(entries[realIdx].name, entries[realIdx].type, &st, &colorLen);
                         }
                     } else {
                         colorCode = "0";
@@ -344,6 +357,144 @@ void printDir(DIR *dirStream, char *currentDir, struct winsize *dimensions) {
                     printf("\033[%.*sm%s\033[0m%-*s", (int)colorLen, colorCode, displayName,
                         (int)(colWidth[i] - strlen(displayName)) + (bar ? 1 : 0), "");
                 }
+            } else if (i < c - 1) {
+                printf("%-*s", (int)colWidth[i], "");
+
+            }
+            if (i < c - 1) {
+                printf("  ");
+
+            }
+        }
+        printf("\n");
+    }
+
+    // never forget!
+    free(entries);
+}
+
+// used by the first pass to do column printing
+// different since we directly need to handle
+// lists, not simply just a directory
+// ... funny how I/O is easier here-
+struct firstPassEntry {
+    char name[PATH_MAX + 1];
+    unsigned char type;
+    struct stat st;
+};
+void firstPassPrint(struct firstPassEntry *entries, int count, struct winsize *dimensions) {
+    if (fullList) {
+        // get the spacing for owner, groups, links, and size.
+        for (int i = 0; i < count; i++) {
+            size_t len;
+            len = snprintf(NULL, 0, "%zu", entries[i].st.st_nlink);
+            if (len > linksLargest) linksLargest = len;
+
+            char *owner = getpwuid(entries[i].st.st_uid)->pw_name;
+            if (strlen(owner) > ownerLargest) ownerLargest = strlen(owner);
+
+            char *group = getgrgid(entries[i].st.st_gid)->gr_name;
+            if (strlen(group) > groupLargest) groupLargest = strlen(group);
+
+            len = snprintf(NULL, 0, "%zu", entries[i].st.st_size);
+            if (len > sizeLargest) sizeLargest = len;
+        }
+
+        // call printFile
+        for (int i = 0; i < count; i++) {
+            printFile(entries[i].name, entries[i].type, entries[i].name, 0, &entries[i].st);
+        }
+        // never forget!
+        free(entries);
+        return;
+    }
+
+    int n = count;
+    // if we dont want dotfiles
+    if (!dotFiles) {
+        for (int i = 0; i < count; i++) {
+            if (entries[i].name[0] == '.') {
+                n--;
+            }
+        }
+    }
+    size_t rows;
+    // contains largest word length + spacing (2)
+    size_t colWidth[n];
+    // candidate for column size
+    int c;
+    // do we hide files?
+    int visible[count];
+    int visibleN = 0;
+    for (int i = 0; i < count; i++) {
+        if (entries[i].name[0] == '.' && !dotFiles) continue;
+        visible[visibleN++] = i;
+    }
+
+    // get column size
+    for (c = n; c >= 1; c--) {
+        rows = (n + c - 1) / c;
+        size_t total = 0;
+
+        for (int i = 0; i < c; i++) {
+            colWidth[i] = 0;
+
+            int realIdx;
+            for (int j = 0; j < rows; j++) {
+                int idx = i * rows + j;
+                if (idx < visibleN) {
+                    realIdx = visible[idx];
+                    int len = strlen(entries[realIdx].name);
+
+                    if (useBar && entries[realIdx].type == DT_DIR) len++;
+                    if (len > colWidth[i]) colWidth[i] = len;
+                }
+            }
+            total += colWidth[i];
+            // if theres a space, add space for two apostrophes
+            if ((strchr(entries[realIdx].name, ' ')) != NULL) total += 2;
+        }
+        total += (c - 1) * 2;
+
+        // if we dont have enough space
+        if (total <= dimensions->ws_col) {
+            break;
+        }
+    }
+
+    // lets print!
+    for (int j = 0; j < rows; j++) {
+        for (int i = 0; i < c; i++) {
+            int idx = i * rows + j;
+            int realIdx = 0;
+            if (idx < visibleN) {
+                realIdx = visible[idx];
+                int len = strlen(entries[realIdx].name);
+
+                if (useBar && entries[realIdx].type == DT_DIR) len++;
+                if (len > colWidth[i]) colWidth[i] = len;
+            }
+
+            if (idx < visibleN) {
+                size_t colorLen;
+                char *colorCode;
+
+                if (useColor) {
+                    colorCode = determineColor(entries[realIdx].name, entries[realIdx].type, &entries[realIdx].st, &colorLen);
+                } else {
+                    colorCode = "0";
+                    colorLen = 1;
+                }
+
+                char bar = useBar && entries[realIdx].type == DT_DIR ? '/' : '\0';
+                char displayName[PATH_MAX + 3];
+                char hasSpace = strchr(entries[realIdx].name, ' ') ? 1 : 0;
+                snprintf(displayName, sizeof(displayName), "%s%s%s%c",
+                    hasSpace ? "'" : "", entries[realIdx].name, hasSpace ? "'" : "", bar);
+
+                printf("\033[%.*sm%s\033[0m%-*s", (int)colorLen, colorCode, displayName,
+                    (int)(colWidth[i] - strlen(displayName)) + (bar ? 1 : 0), "");
+
             } else if (i < c - 1) {
                 printf("%-*s", (int)colWidth[i], "");
 
@@ -387,9 +538,9 @@ void scanRecursive (char *currentPath) {
         fileEntry.type = currentFile->d_type;
 
         if (fileEntry.type != DT_DIR) {
-            printFile(fileEntry, fullPath, 0, &st);
+            printFile(fileEntry.name, fileEntry.type, fullPath, 0, &st);
         } else {
-            printFile(fileEntry, fullPath, 0, &st);
+            printFile(fileEntry.name, fileEntry.type, fullPath, 0, &st);
             scanRecursive(fullPath);
         }
     }
@@ -535,58 +686,37 @@ int main (int argc, char *argv[]) {
         printDir(dirStream, dir, &dimensions);
         closedir(dirStream);
 
-    } else { // get dir user wants
+    } else { // get files user wants
         int onlyFail = 1;
         int hadDir = 0;
         int hadFile = 0;
 
         // first pass, print files
+        // store processed entries in array
+        struct firstPassEntry *firstPass = malloc(argc * sizeof(*firstPass));
+        int firstPassCount = 0;
         for (int i = 1; i < argc; i++) {
-            if (argv[i][0] != '-') {
-                dirStream = opendir(argv[i]);
-                strcpy(dir, argv[i]);
+            if (argv[i][0] == '-') continue;
+            struct stat st;
+            lstat(argv[i], &st);
 
-                if (dirStream == NULL && errno == ENOTDIR) {
-                    onlyFail = 0;
-                    hadFile = 1;
-                    char resolved[PATH_MAX];
-                    if ((realpath(argv[i], resolved)) == NULL) {
-                        fprintf(stderr, "Failed to get true path: %s\n", strerror(errno));
-                        if (!singleDir) {
-                            returnCode = 2;
-                            continue;
-                        } else {
-                            exit(2);
-                        }
-                    }
-
-                    struct stat st;
-                    if ((stat(resolved, &st)) == -1) {
-                        fprintf(stderr, "Failed to get stats on file: %s\n", strerror(errno));
-                        if (!singleDir) {
-                            returnCode = 2;
-                            continue;
-                        } else {
-                            exit(2);
-                        }
-                    }
-                    unsigned char type = IFTODT(st.st_mode);
-
-                    struct entry file;
-                    strncpy(file.name, argv[i], NAME_MAX);
-                    file.name[NAME_MAX] = '\0';
-                    file.type = type;
-
-                    if (singleDir) {
-                        strncpy(file.name, resolved, NAME_MAX);
-                        file.name[NAME_MAX] = '\0';
-                    }
-                    printFile(file, resolved, 1, &st);
-                } else {
-                    hadDir = 1;
-                    continue;
-                }
+            // if its a directory
+            if (S_ISDIR(st.st_mode)) {
+                hadDir = 1;
+                continue;
             }
+
+            onlyFail = 0;
+            // populate file entry
+            strcpy(firstPass[firstPassCount].name, argv[i]);
+            firstPass[firstPassCount].name[PATH_MAX] = '\0';
+            firstPass[firstPassCount].type = IFTODT(st.st_mode);
+            firstPass[firstPassCount].st = st;
+            firstPassCount++;
+        }
+        if (firstPassCount > 0) {
+            firstPassPrint(firstPass, firstPassCount, &dimensions);
+            if (hadDir) printf("\n");
         }
 
         if (hadFile && hadDir) printf("\n");
@@ -639,6 +769,7 @@ int main (int argc, char *argv[]) {
                     onlyFail = 0;
 
                     printDir(dirStream, dir, &dimensions);
+                    if (!singleDir) printf("\n");
                     closedir(dirStream);
                 }
             }
