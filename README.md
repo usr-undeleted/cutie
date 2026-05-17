@@ -28,6 +28,7 @@ Undeleted's life long goal to write their own core utils, following their own de
 - install script (build.sh); enable usage with 'chmod +x build.sh'. Instructions on command output. Includes even custom compile flags set by user!!
 - shaXsum calculation (sha); includes all sha calculations supported by gnu's shaXsums, see the section under for scripts for context on the big walls of code.
 - flood terminal (flood)
+- fetching data (fetch); info like whoami and uname
 
 ## Scripts: 
 - Scripts are provided under 'scripts/'. 
