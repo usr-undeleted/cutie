@@ -53,7 +53,11 @@ char *parseFileValue(const char *path, const char *key) {
 typedef void (*fetchFunc)(void);
 void fetchUser(void)    { printf("%s", getpwuid(getuid())->pw_name ); }
 void fetchHost(void)    { printf("%s", unameFetch.nodename ); }
-void fetchShell(void)   { printf("%s", getenv("SHELL")); }
+void fetchShell(void)   {
+    char *env = getenv("SHELL");
+    if (!env) errorCode = 1;
+    printf("%s", env ? env : "???");
+}
 void fetchPname(void)   { printf("%s", parseFileValue("/etc/os-release", "PRETTY_NAME=")); }
 void fetchKernel(void)  { printf("%s", unameFetch.release); }
 void fetchArch(void)    { printf("%s", unameFetch.machine); }
@@ -83,7 +87,7 @@ void fetchDate(void) {
     stime = *localtime(&ntime);
     // im sorry amerikans!
     strftime(buf, sizeof(buf), "%A %d %B %H:%M:%S %Y", &stime);
-    printf("%s", buf);
+    printf("(%ld) %s", ntime, buf);
 }
 
 // contains what we will print to fetch
@@ -119,7 +123,7 @@ void helpMenu(char *invocation) {
         "   \e[1m-a\e[0m: display cpu architecture.\n"
         "   \e[1m-c\e[0m: display cpu core count.\n"
         "   \e[1m-t\e[0m: display uptime.\n"
-        "   \e[1m-d\e[0m: display current date.\n\n"
+        "   \e[1m-d\e[0m: display current epoch timestamp + date.\n\n"
         "\e[2;3m%s is part of the cutie project hosted under https://github.com/usr-undeleted/cutie licensed under the GPLv3 license.\e[0m\n",
         invocation, invocation, invocation, invocation
     );
