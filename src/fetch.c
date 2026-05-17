@@ -103,6 +103,16 @@ void fetchTerm(void) {
     if (!env) errorCode = 1;
     printf("%s", env ? env : "???");
 }
+void fetchHdir(void) {
+    char *env = getenv("HOME");
+    if (!env) errorCode = 1;
+    printf("%s", env ? env : "???");
+}
+void fetchLang(void) {
+    char *env = getenv("LANG");
+    if (!env) errorCode = 1;
+    printf("%s", env ? env : "???");
+}
 void fetchPid(void)     { printf("%d", getpid()); }
 void fetchUG(void)      { printf("%d %d", getuid(), getgid());}
 void fetchPname(void)   { printf("%s", parseFileValue("/etc/os-release", "PRETTY_NAME=")); }
@@ -120,11 +130,11 @@ void fetchUptime(void)  {
     long mins = (uptime % 3600) / 60;
     long secs = uptime % 60;
 
-    if (weeks)  printf("%ld weeks%c ",      weeks,  days ? ',' : '\0');
-    if (days)   printf("%ld days%c ",       days,   hours ? ',' : '\0');
-    if (hours)  printf("%ld hours%c ",      hours,  mins ? ',' : '\0');
-    if (mins)   printf("%ld minutes%c ",    mins,   secs ? ',' : '\0');
-    if (secs)   printf("%ld seconds",       secs);
+    if (weeks)  printf("%ld weeks%c ",   weeks,  days  ?  ',' : '\0');
+    if (days)   printf("%ld days%c ",    days,   hours ?  ',' : '\0');
+    if (hours)  printf("%ld hours%c ",   hours,  mins  ?  ',' : '\0');
+    if (mins)   printf("%ld minutes%c ", mins,   secs  ?  ',' : '\0');
+    if (secs)   printf("%ld seconds",    secs);
 }
 void fetchDate(void) {
     time_t ntime;
@@ -144,6 +154,8 @@ fetchFunc dispath[] = {
     fetchHost,
     fetchShell,
     fetchTerm,
+    fetchHdir,
+    fetchLang,
     fetchPid,
     fetchUG,
     fetchPname,
@@ -171,12 +183,14 @@ void helpMenu(char *invocation) {
         "   \e[1m-h\e[0m: display hostname.\n"
         "   \e[1m-s\e[0m: display user's shell.\n"
         "   \e[1m-T\e[0m: display user's terminal.\n"
+        "   \e[1m-H\e[0m: display user's home directory.\n"
+        "   \e[1m-L\e[0m: display user's language.\n"
         "   \e[1m-i\e[0m: display current process' PID.\n"
         "   \e[1m-I\e[0m: display user's UID and GID.\n"
         "   \e[1m-o\e[0m: display OS pretty name.\n"
         "   \e[1m-k\e[0m: display kernel release name.\n"
         "   \e[1m-a\e[0m: display cpu architecture.\n"
-        "   \e[1m-c\e[0m: display cpu name.\n"
+        "   \e[1m-C\e[0m: display cpu name.\n"
         "   \e[1m-c\e[0m: display cpu core count.\n"
         "   \e[1m-t\e[0m: display uptime.\n"
         "   \e[1m-d\e[0m: display current epoch timestamp + date.\n\n"
@@ -186,7 +200,7 @@ void helpMenu(char *invocation) {
     exit(0);
 }
 
-#define FETCH_QUANT 13 // single letters
+#define FETCH_QUANT 15 // single letters
 #define FETCH_FF_QUANT 4 // full flags
 #define FETCH_KEY_LARGEST 16 // largest key, for padding
 int main (int argc, char *argv[]) {
@@ -205,6 +219,8 @@ int main (int argc, char *argv[]) {
         'h',
         's',
         'T',
+        'H',
+        'L',
         'i',
         'I',
         'o',
@@ -220,6 +236,8 @@ int main (int argc, char *argv[]) {
         "Hostname: ",
         "Shell: ",
         "Terminal: ",
+        "Home dir: ",
+        "Language: ",
         "PID: ",
         "UID / GID: ",
         "OS: ",
