@@ -5,6 +5,7 @@
 #include <pwd.h>
 #include <grp.h>
 #include <stdio.h>
+#include <string.h>
 #include <sys/stat.h>
 #include <time.h>
 #include <errno.h>
@@ -15,6 +16,24 @@ unsigned int linksLargest = 0;
 unsigned int ownerLargest = 0;
 unsigned int groupLargest = 0;
 unsigned int sizeLargest = 0;
+// instead of constantly using funcs for getting owner and groups,
+// cache them temporarily and see if we can reuse
+#ifndef SCAN_CACHE_SIZE
+#define SCAN_CACHE_SIZE 8
+#endif
+struct uidCache {
+    unsigned int isFilled;
+    uid_t uid;
+    char name[32];
+} userCache[SCAN_CACHE_SIZE] = { 0 };
+struct gidCache {
+    unsigned int isFilled;
+    gid_t gid;
+    char name[32];
+} groupCache[SCAN_CACHE_SIZE] = { 0 };
+// cache will use this to lookup and edit
+unsigned int insertUserIdx  = 0;
+unsigned int insertGroupIdx = 0;
 
 // decide when to print dir name; if only one dir searched, dont
 unsigned int singleDir = 0;
@@ -102,10 +121,45 @@ void printFile (const char *name, unsigned char type, char *fullPath, int spacin
             ((st->st_mode & S_IXOTH) ? 'x' : '-');
         perms[10] = '\0';
         links = st->st_nlink;
-        struct passwd *pw = getpwuid(st->st_uid);
-        owner = pw ? pw->pw_name : "???";
-        struct group *gr = getgrgid(st->st_gid);
-        group = gr ? gr->gr_name : "???";
+        // see if cache contains what we need. if not, populate it
+        // user loop
+        int found = 0;
+        for (int i = 0; i < SCAN_CACHE_SIZE; i++) {
+            if (userCache[i].uid == st->st_uid && userCache[i].isFilled == 1) {
+                // success! reuse cache
+                owner = userCache[i].name;
+                found = 1;
+                break;
+            }
+        }
+        if (!found) {
+            // populate entry
+            snprintf(userCache[insertUserIdx % 32].name, sizeof(userCache[insertUserIdx % 32].name), "%s", getpwuid(st->st_uid)->pw_name);
+            userCache[insertUserIdx % 32].uid = st->st_uid;
+            owner = userCache[insertUserIdx % 32].name;
+            userCache[insertUserIdx % 32].isFilled = 1;
+            insertUserIdx++;
+        }
+        found = 0;
+        // group loop
+        for (int i = 0; i < SCAN_CACHE_SIZE; i++) {
+            if (groupCache[i].gid == st->st_gid && groupCache[i].isFilled == 1) {
+                // success! reuse cache
+                group = userCache[i].name;
+                found = 1;
+                break;
+            }
+        }
+        if (!found) {
+            // populate entry
+            snprintf(groupCache[insertGroupIdx % 32].name, sizeof(groupCache[insertGroupIdx % 32].name), "%s", getgrgid(st->st_uid)->gr_name);
+            groupCache[insertGroupIdx % 32].gid = st->st_gid;
+            group = groupCache[insertGroupIdx % 32].name;
+            groupCache[insertGroupIdx % 32].isFilled = 1;
+            insertGroupIdx++;
+        }
+        found = 0;
+
         size = st->st_size;
         // formatted time
         mtime = st->st_mtime;
@@ -153,12 +207,6 @@ void printFile (const char *name, unsigned char type, char *fullPath, int spacin
                 colorLen = 1;
             }
 
-            /*
-            strcat(printed, "\e[0m -> \e[");
-            strcat(printed, colorCode);
-            strcat(printed, "m");
-            strcat(printed, target);
-            */
             size_t len = strlen(printed);
             snprintf(printed + len, sizeof(printed) - len, "\e[0m -> \e[%sm%s\e[0m", colorCode, target);
         }
