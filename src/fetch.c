@@ -93,6 +93,15 @@ char *parseProcValue(const char *path, const char *key) {
 typedef void (*fetchFunc)(void);
 void fetchUser(void)    { printf("%s", getpwuid(getuid())->pw_name ); }
 void fetchHost(void)    { printf("%s", unameFetch.nodename ); }
+void fetchDname(void)   {
+    char domain[256];
+    if (getdomainname(domain, sizeof(domain)) != 0 || domain[0] == '\0') {
+        errorCode = 1;
+        printf("???");
+    } else {
+        printf("%s", domain);
+    }
+}
 void fetchShell(void)   {
     char *env = getenv("SHELL");
     if (!env) errorCode = 1;
@@ -120,6 +129,11 @@ void fetchKernel(void)  { printf("%s", unameFetch.release); }
 void fetchArch(void)    { printf("%s", unameFetch.machine); }
 void fetchCname(void)   { printf("%s", parseProcValue("/proc/cpuinfo", "model name")); }
 void fetchCcount(void)  { printf("%ld", sysconf(_SC_NPROCESSORS_ONLN)); }
+void fetchPcount(void)  { printf("%d", sysinfoFetch.procs); }
+void fetchLavg(void)    { printf("%f %f %f",
+    (double)sysinfoFetch.loads[0] / 65536.0,
+    (double)sysinfoFetch.loads[1] / 65536.0,
+    (double)sysinfoFetch.loads[2] / 65536.0); }
 void fetchUptime(void)  {
     // format total uptime
     long uptime = sysinfoFetch.uptime;
@@ -152,6 +166,7 @@ void fetchDate(void) {
 fetchFunc dispath[] = {
     fetchUser,
     fetchHost,
+    fetchDname,
     fetchShell,
     fetchTerm,
     fetchHdir,
@@ -163,6 +178,8 @@ fetchFunc dispath[] = {
     fetchArch,
     fetchCname,
     fetchCcount,
+    fetchPcount,
+    fetchLavg,
     fetchUptime,
     fetchDate
 };
@@ -181,6 +198,7 @@ void helpMenu(char *invocation) {
         "fetch-able data:\n"
         "   \e[1m-u\e[0m: display username.\n"
         "   \e[1m-h\e[0m: display hostname.\n"
+        "   \e[1m-D\e[0m: display host's domain name.\n"
         "   \e[1m-s\e[0m: display user's shell.\n"
         "   \e[1m-T\e[0m: display user's terminal.\n"
         "   \e[1m-H\e[0m: display user's home directory.\n"
@@ -192,6 +210,8 @@ void helpMenu(char *invocation) {
         "   \e[1m-a\e[0m: display cpu architecture.\n"
         "   \e[1m-C\e[0m: display cpu name.\n"
         "   \e[1m-c\e[0m: display cpu core count.\n"
+        "   \e[1m-p\e[0m: display proc count.\n"
+        "   \e[1m-l\e[0m: display load average.\n"
         "   \e[1m-t\e[0m: display uptime.\n"
         "   \e[1m-d\e[0m: display current epoch timestamp + date.\n\n"
         "\e[2;3m%s is part of the cutie project hosted under https://github.com/usr-undeleted/cutie licensed under the GPLv3 license.\e[0m\n",
@@ -200,9 +220,9 @@ void helpMenu(char *invocation) {
     exit(0);
 }
 
-#define FETCH_QUANT 15 // single letters
+#define FETCH_QUANT 18 // single letters
 #define FETCH_FF_QUANT 4 // full flags
-#define FETCH_KEY_LARGEST 16 // largest key, for padding
+#define FETCH_KEY_LARGEST 17 // largest key, for padding
 int main (int argc, char *argv[]) {
     // eventually loop over this to print
     int dispatchTable[FETCH_QUANT] = { 0 };
@@ -217,6 +237,7 @@ int main (int argc, char *argv[]) {
     char charFlags[FETCH_QUANT] = {
         'u',
         'h',
+        'D',
         's',
         'T',
         'H',
@@ -228,12 +249,15 @@ int main (int argc, char *argv[]) {
         'a',
         'C',
         'c',
+        'p',
+        'l',
         't',
         'd'
     };
     char *fetchKey[FETCH_QUANT] = {
         "Username: ",
         "Hostname: ",
+        "Domain name: ",
         "Shell: ",
         "Terminal: ",
         "Home dir: ",
@@ -245,6 +269,8 @@ int main (int argc, char *argv[]) {
         "Architecture: ",
         "CPU name: ",
         "Core count: ",
+        "Total processes: ",
+        "Load average: ",
         "Uptime: ",
         "Date: ",
     };
