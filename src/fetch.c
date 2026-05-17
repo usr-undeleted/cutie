@@ -52,9 +52,9 @@ char *parseFileValue(const char *path, const char *key) {
     return "???";
 }
 
-// for /proc/*, aka key : value
-char *parseProcValue(const char *key) {
-    FILE *file = fopen("/proc/cpuinfo", "r");
+// for /proc/* (and eventually /proc/driver/nvidia/gpus/<gpu>/information, for example), aka key : value
+char *parseProcValue(const char *path, const char *key) {
+    FILE *file = fopen(path, "r");
     if (!file) {
         errorCode = 1;
         return "???";
@@ -67,8 +67,12 @@ char *parseProcValue(const char *key) {
         if (!strncmp(line, key, keyLen)) {
             // remove \n
             line[strlen(line) - 1] = '\0';
-            // start after ': '
-            char *start = strchr(line, ':') + 2;
+            // set start to after colon and its whitespace
+            char *start = strchr(line, ':');
+            start++; // skip ':'
+            // skip whitespace
+            while (*start == ' ' || *start == '\t') start++;
+
             size_t valLen = strlen(start);
 
             // format value
@@ -93,10 +97,15 @@ void fetchShell(void)   {
     if (!env) errorCode = 1;
     printf("%s", env ? env : "???");
 }
+void fetchTerm(void) {
+    char *env = getenv("TERM");
+    if (!env) errorCode = 1;
+    printf("%s", env ? env : "???");
+}
 void fetchPname(void)   { printf("%s", parseFileValue("/etc/os-release", "PRETTY_NAME=")); }
 void fetchKernel(void)  { printf("%s", unameFetch.release); }
 void fetchArch(void)    { printf("%s", unameFetch.machine); }
-void fetchCname(void)   { printf("%s", parseProcValue("model name")); }
+void fetchCname(void)   { printf("%s", parseProcValue("/proc/cpuinfo", "model name")); }
 void fetchCcount(void)  { printf("%ld", sysconf(_SC_NPROCESSORS_ONLN)); }
 void fetchUptime(void)  {
     // format total uptime
@@ -131,6 +140,7 @@ fetchFunc dispath[] = {
     fetchUser,
     fetchHost,
     fetchShell,
+    fetchTerm,
     fetchPname,
     fetchKernel,
     fetchArch,
@@ -155,6 +165,9 @@ void helpMenu(char *invocation) {
         "   \e[1m-u\e[0m: display username.\n"
         "   \e[1m-h\e[0m: display hostname.\n"
         "   \e[1m-s\e[0m: display user's shell.\n"
+        "   \e[1m-T\e[0m: display user's terminal.\n"
+        "   \e[1m-i\e[0m: display current process' PID.\n"
+        "   \e[1m-I\e[0m: display user's UID and GID.\n"
         "   \e[1m-o\e[0m: display OS pretty name.\n"
         "   \e[1m-k\e[0m: display kernel release name.\n"
         "   \e[1m-a\e[0m: display cpu architecture.\n"
@@ -168,7 +181,7 @@ void helpMenu(char *invocation) {
     exit(0);
 }
 
-#define FETCH_QUANT 10 // single letters
+#define FETCH_QUANT 11 // single letters
 #define FETCH_FF_QUANT 4 // full flags
 #define FETCH_KEY_LARGEST 16 // largest key, for padding
 int main (int argc, char *argv[]) {
@@ -186,6 +199,7 @@ int main (int argc, char *argv[]) {
         'u',
         'h',
         's',
+        'T',
         'o',
         'k',
         'a',
@@ -198,13 +212,14 @@ int main (int argc, char *argv[]) {
         "Username: ",
         "Hostname: ",
         "Shell: ",
+        "Terminal: ",
         "OS: ",
         "Kernel release: ",
         "Architecture: ",
         "CPU name: ",
         "Core count: ",
         "Uptime: ",
-        "Date: "
+        "Date: ",
     };
 
     // set flags and populate dispatch table
