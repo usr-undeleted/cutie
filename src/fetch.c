@@ -1,10 +1,8 @@
 #include "cutie-common.h"
-#include <bits/posix2_lim.h>
-#include <linux/limits.h>
-#include <stdio.h>
 #include <pwd.h>
 #include <sys/utsname.h>
 #include <sys/sysinfo.h>
+#include <time.h>
 
 // print new lines beetwen fetches?
 unsigned int newLines = 0;
@@ -71,6 +69,17 @@ void fetchUptime(void)  {
     if (mins)   printf("%ld minutes%c ",    mins,   secs ? ',' : '\0');
     if (secs)   printf("%ld seconds",       secs);
 }
+void fetchDate(void) {
+    time_t ntime;
+    struct tm stime;
+    char buf[128];
+    time(&ntime);
+
+    stime = *localtime(&ntime);
+    // im sorry amerikans!
+    strftime(buf, sizeof(buf), "%A %d %B %H:%M:%S %Y", &stime);
+    printf("%s", buf);
+}
 
 // contains what we will print to fetch
 fetchFunc dispath[] = {
@@ -81,7 +90,8 @@ fetchFunc dispath[] = {
     fetchKernel,
     fetchArch,
     fetchCcount,
-    fetchUptime
+    fetchUptime,
+    fetchDate
 };
 
 // combine as much user info as realistically possible into
@@ -103,14 +113,15 @@ void helpMenu(char *invocation) {
         "   \e[1m-k\e[0m: display kernel release name.\n"
         "   \e[1m-a\e[0m: display cpu architecture.\n"
         "   \e[1m-c\e[0m: display cpu core count.\n"
-        "   \e[1m-t\e[0m: display uptime.\n\n"
+        "   \e[1m-t\e[0m: display uptime.\n"
+        "   \e[1m-d\e[0m: display current date.\n\n"
         "\e[2;3m%s is part of the cutie project hosted under https://github.com/usr-undeleted/cutie licensed under the GPLv3 license.\e[0m\n",
         invocation, invocation, invocation, invocation
     );
     exit(0);
 }
 
-#define FETCH_QUANT 8 // single letters
+#define FETCH_QUANT 9 // single letters
 #define FETCH_FF_QUANT 4 // full flags
 #define FETCH_KEY_LARGEST 16 // largest key, for padding
 int main (int argc, char *argv[]) {
@@ -133,7 +144,8 @@ int main (int argc, char *argv[]) {
         'k',
         'a',
         'c',
-        't'
+        't',
+        'd'
     };
     char *fetchKey[FETCH_QUANT] = {
         "Username: ",
@@ -143,7 +155,8 @@ int main (int argc, char *argv[]) {
         "Kernel release: ",
         "Architecture: ",
         "Core count: ",
-        "Uptime: "
+        "Uptime: ",
+        "Date: "
     };
 
     // set flags and populate dispatch table
