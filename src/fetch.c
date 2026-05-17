@@ -4,6 +4,7 @@
 #include <sys/utsname.h>
 #include <sys/sysinfo.h>
 #include <time.h>
+#include <unistd.h>
 
 // print new lines beetwen fetches?
 unsigned int newLines = 0;
@@ -102,6 +103,8 @@ void fetchTerm(void) {
     if (!env) errorCode = 1;
     printf("%s", env ? env : "???");
 }
+void fetchPid(void)     { printf("%d", getpid()); }
+void fetchUG(void)      { printf("%d %d", getuid(), getgid());}
 void fetchPname(void)   { printf("%s", parseFileValue("/etc/os-release", "PRETTY_NAME=")); }
 void fetchKernel(void)  { printf("%s", unameFetch.release); }
 void fetchArch(void)    { printf("%s", unameFetch.machine); }
@@ -141,6 +144,8 @@ fetchFunc dispath[] = {
     fetchHost,
     fetchShell,
     fetchTerm,
+    fetchPid,
+    fetchUG,
     fetchPname,
     fetchKernel,
     fetchArch,
@@ -181,7 +186,7 @@ void helpMenu(char *invocation) {
     exit(0);
 }
 
-#define FETCH_QUANT 11 // single letters
+#define FETCH_QUANT 13 // single letters
 #define FETCH_FF_QUANT 4 // full flags
 #define FETCH_KEY_LARGEST 16 // largest key, for padding
 int main (int argc, char *argv[]) {
@@ -200,6 +205,8 @@ int main (int argc, char *argv[]) {
         'h',
         's',
         'T',
+        'i',
+        'I',
         'o',
         'k',
         'a',
@@ -213,6 +220,8 @@ int main (int argc, char *argv[]) {
         "Hostname: ",
         "Shell: ",
         "Terminal: ",
+        "PID: ",
+        "UID / GID: ",
         "OS: ",
         "Kernel release: ",
         "Architecture: ",
