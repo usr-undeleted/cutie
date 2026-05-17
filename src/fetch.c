@@ -1,4 +1,5 @@
 #include "cutie-common.h"
+#include <bits/posix2_lim.h>
 #include <pwd.h>
 #include <sys/utsname.h>
 #include <sys/sysinfo.h>
@@ -15,6 +16,7 @@ unsigned int siValid = 0;
 // global errorcode
 int errorCode = 0;
 
+// for KEY="value"
 char *parseFileValue(const char *path, const char *key) {
     FILE *file = fopen(path, "r");
     if (!file) {
@@ -46,6 +48,39 @@ char *parseFileValue(const char *path, const char *key) {
 
     // incase nothing is found
     fclose(file);
+    errorCode = 1;
+    return "???";
+}
+
+// for /proc/*, aka key : value
+char *parseProcValue(const char *key) {
+    FILE *file = fopen("/proc/cpuinfo", "r");
+    if (!file) {
+        errorCode = 1;
+        return "???";
+    }
+    static char value[256];
+
+    char line[LINE_MAX];
+    size_t keyLen = strlen(key);
+    while (fgets(line, sizeof(line), file)) {
+        if (!strncmp(line, key, keyLen)) {
+            // remove \n
+            line[strlen(line) - 1] = '\0';
+            // start after ': '
+            char *start = strchr(line, ':') + 2;
+            size_t valLen = strlen(start);
+
+            // format value
+            snprintf(value, sizeof(value), "%s", start);
+
+            fclose(file);
+            return value;
+        }
+    }
+
+    fclose(file);
+    errorCode = 1;
     return "???";
 }
 
@@ -61,6 +96,7 @@ void fetchShell(void)   {
 void fetchPname(void)   { printf("%s", parseFileValue("/etc/os-release", "PRETTY_NAME=")); }
 void fetchKernel(void)  { printf("%s", unameFetch.release); }
 void fetchArch(void)    { printf("%s", unameFetch.machine); }
+void fetchCname(void)   { printf("%s", parseProcValue("model name")); }
 void fetchCcount(void)  { printf("%ld", sysconf(_SC_NPROCESSORS_ONLN)); }
 void fetchUptime(void)  {
     // format total uptime
@@ -98,6 +134,7 @@ fetchFunc dispath[] = {
     fetchPname,
     fetchKernel,
     fetchArch,
+    fetchCname,
     fetchCcount,
     fetchUptime,
     fetchDate
@@ -121,6 +158,7 @@ void helpMenu(char *invocation) {
         "   \e[1m-o\e[0m: display OS pretty name.\n"
         "   \e[1m-k\e[0m: display kernel release name.\n"
         "   \e[1m-a\e[0m: display cpu architecture.\n"
+        "   \e[1m-c\e[0m: display cpu name.\n"
         "   \e[1m-c\e[0m: display cpu core count.\n"
         "   \e[1m-t\e[0m: display uptime.\n"
         "   \e[1m-d\e[0m: display current epoch timestamp + date.\n\n"
@@ -130,7 +168,7 @@ void helpMenu(char *invocation) {
     exit(0);
 }
 
-#define FETCH_QUANT 9 // single letters
+#define FETCH_QUANT 10 // single letters
 #define FETCH_FF_QUANT 4 // full flags
 #define FETCH_KEY_LARGEST 16 // largest key, for padding
 int main (int argc, char *argv[]) {
@@ -151,6 +189,7 @@ int main (int argc, char *argv[]) {
         'o',
         'k',
         'a',
+        'C',
         'c',
         't',
         'd'
@@ -162,6 +201,7 @@ int main (int argc, char *argv[]) {
         "OS: ",
         "Kernel release: ",
         "Architecture: ",
+        "CPU name: ",
         "Core count: ",
         "Uptime: ",
         "Date: "
