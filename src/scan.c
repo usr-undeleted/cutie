@@ -72,9 +72,8 @@ int cmpEntries(const void *a, const void *b) {
 }
 
 void printFile (const char *name, unsigned char type, char *fullPath, int spacing, struct stat *st) {
-    if (name[0] == '.' && !dotFiles) {
-        return;
-    }
+    if (!strcmp(name, ".") || !strcmp(name, "..")) return;
+    if (name[0] == '.' && !dotFiles) return;
 
     // are we gonna wrap this?
     char apostrophe = strchr(name, ' ') ? 39 : '\0';
@@ -134,31 +133,36 @@ void printFile (const char *name, unsigned char type, char *fullPath, int spacin
         }
         if (!found) {
             // populate entry
-            snprintf(userCache[insertUserIdx % 32].name, sizeof(userCache[insertUserIdx % 32].name), "%s", getpwuid(st->st_uid)->pw_name);
+            struct passwd *pw = getpwuid(st->st_uid);
+            if (!pw) { owner = "???"; }
+            else { snprintf(userCache[insertUserIdx % 32].name, sizeof(userCache[insertUserIdx % 32].name), "%s", pw->pw_name);
             userCache[insertUserIdx % 32].uid = st->st_uid;
             owner = userCache[insertUserIdx % 32].name;
             userCache[insertUserIdx % 32].isFilled = 1;
             insertUserIdx++;
+            }
         }
         found = 0;
         // group loop
         for (int i = 0; i < SCAN_CACHE_SIZE; i++) {
             if (groupCache[i].gid == st->st_gid && groupCache[i].isFilled == 1) {
                 // success! reuse cache
-                group = userCache[i].name;
+                group = groupCache[i].name;
                 found = 1;
                 break;
             }
         }
         if (!found) {
             // populate entry
-            snprintf(groupCache[insertGroupIdx % 32].name, sizeof(groupCache[insertGroupIdx % 32].name), "%s", getgrgid(st->st_uid)->gr_name);
+            struct group *gr = getgrgid(st->st_gid);
+            if (!gr) { group = "???"; }
+            else { snprintf(groupCache[insertGroupIdx % 32].name, sizeof(groupCache[insertGroupIdx % 32].name), "%s", gr->gr_name);
             groupCache[insertGroupIdx % 32].gid = st->st_gid;
             group = groupCache[insertGroupIdx % 32].name;
             groupCache[insertGroupIdx % 32].isFilled = 1;
             insertGroupIdx++;
+            }
         }
-        found = 0;
 
         size = st->st_size;
         // formatted time
@@ -190,8 +194,7 @@ void printFile (const char *name, unsigned char type, char *fullPath, int spacin
             size_t colorLen;
             char *colorCode;
 
-            if (useColor) {
-                stat(fullPath, &st);
+            if (useColor && stat(fullPath, &st) == 0) {
                 unsigned char targetType = S_ISDIR(st.st_mode) ? DT_DIR :
                                S_ISREG(st.st_mode) ? DT_REG :
                                S_ISLNK(st.st_mode) ? DT_LNK :
@@ -307,13 +310,8 @@ void printDir(DIR *dirStream, char *currentDir, struct winsize *dimensions) {
             snprintf(resolved, sizeof(resolved), "%s/%s", currentDir, entries[i].name);
 
             if (lstat(resolved, &stats[i]) != 0) {
-                fprintf(stderr, "Failed to get stats on file '%s': %s", resolved, strerror(errno));
-                if (!singleDir) {
-                    returnCode = 2;
-                    continue;
-                } else {
-                    exit(2);
-                }
+                returnCode = 2;
+                continue;
             }
 
             size_t len;
@@ -644,13 +642,11 @@ int main (int argc, char *argv[]) {
     // lets us be lazy
     setvbuf(stdout, NULL, _IOFBF, BUFSIZ * 2);
     // used by determineColor
-    if (useColor) {
-        lsColors = getenv("LS_COLORS");
+    lsColors = getenv("LS_COLORS");
+    if (!lsColors) {
+        lsColors = getenv("SCAN_COLORS");
         if (!lsColors) {
-            lsColors = getenv("SCAN_COLORS");
-            if (!lsColors) {
-                returnCode = 2;
-            }
+            returnCode = 2;
         }
     }
 
@@ -792,7 +788,7 @@ int main (int argc, char *argv[]) {
             if (argv[i][0] == '-') continue;
             struct stat st;
             if (lstat(argv[i], &st) != 0) {
-                fprintf(stderr, "Couldn't access '%s': %s\n", argv[i], strerror(errno));
+                if (!fullList) fprintf(stderr, "Couldn't access '%s': %s\n", argv[i], strerror(errno));
                 returnCode = 2;
                 continue;
             }
@@ -813,7 +809,7 @@ int main (int argc, char *argv[]) {
         }
         if (firstPassCount > 0) {
             firstPassPrint(firstPass, firstPassCount, &dimensions);
-            if (hadDir) printf("\n");
+            if (hadDir && !fullList) printf("\n");
         } else {
             free(firstPass);
         }
@@ -834,7 +830,7 @@ int main (int argc, char *argv[]) {
                             continue;
                         }
                         if (errno == ENOENT) {
-                            fprintf(stderr, "Couldn't access '%s': %s\n", argv[i], strerror(errno));
+                            if (!fullList) fprintf(stderr, "Couldn't access '%s': %s\n", argv[i], strerror(errno));
                             needSeparator = 0;
                             if (!singleDir) {
                                 returnCode = 2;
@@ -844,7 +840,7 @@ int main (int argc, char *argv[]) {
                             }
                         }
 
-                        fprintf(stderr, "Couldn't access '%s': %s\n", argv[i], strerror(errno));
+                        if (!fullList) fprintf(stderr, "Couldn't access '%s': %s\n", argv[i], strerror(errno));
                         needSeparator = 0;
                         if (singleDir) {
                             return 2;
@@ -857,18 +853,16 @@ int main (int argc, char *argv[]) {
                     if (hadFile) printf("\n");
 
                     char bar = useBar ? '/' : '\0';
-                    if (!singleDir) {
-                        if (useColor) {
-                            printf("\033[34;1m%s%c:\033[0m\n", argv[i], bar);
-                        } else {
-                            printf("%s%c:\n", argv[i], bar);
-                        }
+                    if (useColor) {
+                        printf("%c\033[34;1m%s%c:\033[0m\n", fullList ? '\n' : '\0', argv[i], bar);
+                    } else {
+                        printf("%s%c:\n", argv[i], bar);
                     }
 
                     onlyFail = 0;
 
                     printDir(dirStream, dir, &dimensions);
-                    if (!singleDir) printf("\n");
+                    if (!singleDir && !fullList) printf("\n");
                     closedir(dirStream);
                 }
             }
