@@ -318,10 +318,52 @@ void printDir(DIR *dirStream, char *currentDir, struct winsize *dimensions) {
             len = snprintf(NULL, 0, "%zu", stats[i].st_nlink);
             if (len > linksLargest) linksLargest = len;
 
-            char *owner = getpwuid(stats[i].st_uid)->pw_name;
+            // see if cache contains what we need. if not, populate it
+            // user loop
+            int found = 0;
+            char *owner;
+            for (int i = 0; i < SCAN_CACHE_SIZE; i++) {
+                if (userCache[i].uid == stats->st_uid && userCache[i].isFilled == 1) {
+                    // success! reuse cache
+                    owner = userCache[i].name;
+                    found = 1;
+                    break;
+                }
+            }
+            if (!found) {
+                // populate entry
+                struct passwd *pw = getpwuid(stats->st_uid);
+                if (!pw) { owner = "???"; }
+                else { snprintf(userCache[insertUserIdx % 32].name, sizeof(userCache[insertUserIdx % 32].name), "%s", pw->pw_name);
+                userCache[insertUserIdx % 32].uid = stats->st_uid;
+                owner = userCache[insertUserIdx % 32].name;
+                userCache[insertUserIdx % 32].isFilled = 1;
+                insertUserIdx++;
+                }
+            }
             if (strlen(owner) > ownerLargest) ownerLargest = strlen(owner);
-
-            char *group = getgrgid(stats[i].st_gid)->gr_name;
+            found = 0;
+            // group loop
+            char *group;
+            for (int i = 0; i < SCAN_CACHE_SIZE; i++) {
+                if (groupCache[i].gid == stats->st_gid && groupCache[i].isFilled == 1) {
+                    // success! reuse cache
+                    group = groupCache[i].name;
+                    found = 1;
+                    break;
+                }
+            }
+            if (!found) {
+                // populate entry
+                struct group *gr = getgrgid(stats->st_gid);
+                if (!gr) { group = "???"; }
+                else { snprintf(groupCache[insertGroupIdx % 32].name, sizeof(groupCache[insertGroupIdx % 32].name), "%s", gr->gr_name);
+                groupCache[insertGroupIdx % 32].gid = stats->st_gid;
+                group = groupCache[insertGroupIdx % 32].name;
+                groupCache[insertGroupIdx % 32].isFilled = 1;
+                insertGroupIdx++;
+                }
+            }
             if (strlen(group) > groupLargest) groupLargest = strlen(group);
 
             len = snprintf(NULL, 0, "%zu", stats[i].st_size);
@@ -473,10 +515,52 @@ void firstPassPrint(struct firstPassEntry *entries, int count, struct winsize *d
             len = snprintf(NULL, 0, "%zu", entries[i].st.st_nlink);
             if (len > linksLargest) linksLargest = len;
 
-            char *owner = getpwuid(entries[i].st.st_uid)->pw_name;
+            // see if cache contains what we need. if not, populate it
+            // user loop
+            int found = 0;
+            char *owner;
+            for (int i = 0; i < SCAN_CACHE_SIZE; i++) {
+                if (userCache[i].uid == entries->st.st_uid && userCache[i].isFilled == 1) {
+                    // success! reuse cache
+                    owner = userCache[i].name;
+                    found = 1;
+                    break;
+                }
+            }
+            if (!found) {
+                // populate entry
+                struct passwd *pw = getpwuid(entries->st.st_uid);
+                if (!pw) { owner = "???"; }
+                else { snprintf(userCache[insertUserIdx % 32].name, sizeof(userCache[insertUserIdx % 32].name), "%s", pw->pw_name);
+                userCache[insertUserIdx % 32].uid = entries->st.st_uid;
+                owner = userCache[insertUserIdx % 32].name;
+                userCache[insertUserIdx % 32].isFilled = 1;
+                insertUserIdx++;
+                }
+            }
             if (strlen(owner) > ownerLargest) ownerLargest = strlen(owner);
-
-            char *group = getgrgid(entries[i].st.st_gid)->gr_name;
+            found = 0;
+            // group loop
+            char *group;
+            for (int i = 0; i < SCAN_CACHE_SIZE; i++) {
+                if (groupCache[i].gid == entries->st.st_gid && groupCache[i].isFilled == 1) {
+                    // success! reuse cache
+                    group = groupCache[i].name;
+                    found = 1;
+                    break;
+                }
+            }
+            if (!found) {
+                // populate entry
+                struct group *gr = getgrgid(entries->st.st_gid);
+                if (!gr) { group = "???"; }
+                else { snprintf(groupCache[insertGroupIdx % 32].name, sizeof(groupCache[insertGroupIdx % 32].name), "%s", gr->gr_name);
+                groupCache[insertGroupIdx % 32].gid = entries->st.st_gid;
+                group = groupCache[insertGroupIdx % 32].name;
+                groupCache[insertGroupIdx % 32].isFilled = 1;
+                insertGroupIdx++;
+                }
+            }
             if (strlen(group) > groupLargest) groupLargest = strlen(group);
 
             len = snprintf(NULL, 0, "%zu", entries[i].st.st_size);
@@ -867,6 +951,7 @@ int main (int argc, char *argv[]) {
                 }
             }
         }
+        if (!singleDir && !fullList) printf("\e[A");
 
         if (onlyFail) {
             return 2;
