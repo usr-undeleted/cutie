@@ -12,10 +12,15 @@ unsigned int showKey = 0;
 struct utsname unameFetch;
 struct sysinfo sysinfoFetch;
 unsigned int siValid = 0;
+// global errorcode
+int errorCode = 0;
 
 char *parseFileValue(const char *path, const char *key) {
     FILE *file = fopen(path, "r");
-    if (!file) return "???";
+    if (!file) {
+        errorCode = 1;
+        return "???";
+    };
     static char value[256];
 
     char line[LINE_MAX];
@@ -127,7 +132,6 @@ void helpMenu(char *invocation) {
 int main (int argc, char *argv[]) {
     // eventually loop over this to print
     int dispatchTable[FETCH_QUANT] = { 0 };
-    int errorCode = 0;
 
     // sadly we cant use labelFlags due to full and minimal flags being different
     char *fullFlags[FETCH_FF_QUANT] = {
