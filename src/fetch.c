@@ -134,6 +134,7 @@ void fetchLavg(void)    { printf("%f %f %f",
     (double)sysinfoFetch.loads[0] / 65536.0,
     (double)sysinfoFetch.loads[1] / 65536.0,
     (double)sysinfoFetch.loads[2] / 65536.0); }
+void fetchPsize(void)   { printf("%ld", sysconf(_SC_PAGESIZE)); }
 void fetchUptime(void)  {
     // format total uptime
     long uptime = sysinfoFetch.uptime;
@@ -179,6 +180,7 @@ fetchFunc dispath[] = {
     fetchCname,
     fetchCcount,
     fetchPcount,
+    fetchPsize,
     fetchLavg,
     fetchUptime,
     fetchDate
@@ -211,6 +213,7 @@ void helpMenu(char *invocation) {
         "   \e[1m-C\e[0m: display cpu name.\n"
         "   \e[1m-c\e[0m: display cpu core count.\n"
         "   \e[1m-p\e[0m: display proc count.\n"
+        "   \e[1m-P\e[0m: display page size.\n"
         "   \e[1m-l\e[0m: display load average.\n"
         "   \e[1m-t\e[0m: display uptime.\n"
         "   \e[1m-d\e[0m: display current epoch timestamp + date.\n\n"
@@ -220,7 +223,7 @@ void helpMenu(char *invocation) {
     exit(0);
 }
 
-#define FETCH_QUANT 18 // single letters
+#define FETCH_QUANT 19 // single letters
 #define FETCH_FF_QUANT 4 // full flags
 #define FETCH_KEY_LARGEST 17 // largest key, for padding
 int main (int argc, char *argv[]) {
@@ -250,6 +253,7 @@ int main (int argc, char *argv[]) {
         'C',
         'c',
         'p',
+        'P',
         'l',
         't',
         'd'
@@ -270,6 +274,7 @@ int main (int argc, char *argv[]) {
         "CPU name: ",
         "Core count: ",
         "Total processes: ",
+        "Page size: ",
         "Load average: ",
         "Uptime: ",
         "Date: ",
