@@ -1,10 +1,17 @@
 #include "cutie-common.h"
 #include <bits/posix2_lim.h>
+#include <dirent.h>
+#include <fcntl.h>
+#include <netinet/in.h>
 #include <pwd.h>
+#include <sys/socket.h>
 #include <sys/utsname.h>
 #include <sys/sysinfo.h>
 #include <time.h>
 #include <unistd.h>
+#include <ifaddrs.h>
+#include <arpa/inet.h>
+#include <net/if.h>
 
 // print new lines beetwen fetches?
 unsigned int newLines = 0;
@@ -176,6 +183,58 @@ void fetchSwap(void) {
 
     printf("%.2f %s | %.2f %s", t, units[tu], rf, units[fu]);
 }
+void fetchGpu(void) {
+    DIR *drm = opendir("/sys/class/drm");
+    if (!drm) {
+        printf("???");
+        errorCode = 1;
+        return;
+    }
+
+    struct dirent *entry;
+    unsigned char foundCard = 0;
+    while ((entry = readdir(drm)) != NULL) {
+        // find all cardN entries
+        if (strncmp(entry->d_name, "card", 4) || entry->d_name[5] != '\0') continue;
+
+        // form path to info
+        char path[256];
+        snprintf(path, sizeof(path), "/sys/class/drm/%s/device/vendor", entry->d_name);
+
+        // find name of vendor by reading the symlink's target
+        FILE *file = fopen(path, "r");
+        if (!file) continue;
+
+        // open line and find hex code, and remove '\n'
+        char line[32] = { 0 };
+        char *point = fgets(line, sizeof(line), file);
+        unsigned short end = 0;
+        while (*point++ != '\n') {
+            end++;
+        }
+        line[end++] = '\0';
+
+        // get value and compare
+        char *endptr;
+        unsigned long vendor = strtoul(line, &endptr, 16);
+        if (line == endptr) continue;
+        switch (vendor) {
+            case 0x10de: printf("(%s) nvidia ", entry->d_name); break;
+            case 0x1002: printf("(%s) amd ",    entry->d_name); break;
+            case 0x8086: printf("(%s) intel ",  entry->d_name); break;
+            default: continue; break;
+        }
+
+        fclose(file);
+        foundCard = 1;
+    }
+
+    if (!foundCard) {
+        printf("???");
+        errorCode = 1;
+        return;
+    }
+}
 void fetchPsize(void)   { printf("%ld", sysconf(_SC_PAGESIZE)); }
 void fetchUptime(void)  {
     // format total uptime
@@ -204,6 +263,32 @@ void fetchDate(void) {
     strftime(buf, sizeof(buf), "%A %d %B %H:%M:%S %Y", &stime);
     printf("(%ld) %s", ntime, buf);
 }
+void fetchIps(void) {
+    struct ifaddrs *ifaddr;
+    if (getifaddrs(&ifaddr) != 0) {
+        printf("???");
+        errorCode = 1;
+        return;
+    }
+
+    // loop trough all interfaces
+    for (struct ifaddrs *ifa = ifaddr; ifa != NULL; ifa = ifa->ifa_next ) {
+        if (!ifa->ifa_addr) continue;
+        // only accept ipv4
+        if (ifa->ifa_addr->sa_family != AF_INET) continue;
+        // filter down networks
+        if ((ifa->ifa_flags & IFF_UP) == 0) continue;
+
+        struct sockaddr_in *sa = (struct sockaddr_in *)ifa->ifa_addr;
+        // for eventual ipv6 support, use INET6_ADDRSTRLEN
+        char ip[INET_ADDRSTRLEN];
+        inet_ntop(AF_INET, &sa->sin_addr, ip, sizeof(ip));
+
+        unsigned char isLoopback = ifa->ifa_flags & IFF_LOOPBACK;
+        printf("(%s) %s ", isLoopback ? "loopback" : ifa->ifa_name, ip);
+    }
+    freeifaddrs(ifaddr);
+}
 
 // contains what we will print to fetch
 fetchFunc dispath[] = {
@@ -226,8 +311,10 @@ fetchFunc dispath[] = {
     fetchLavg,
     fetchMem,
     fetchSwap,
+    fetchGpu,
     fetchUptime,
-    fetchDate
+    fetchDate,
+    fetchIps,
 };
 
 // combine as much user info as realistically possible into
@@ -261,15 +348,18 @@ void helpMenu(char *invocation) {
         "   \e[1m-l\e[0m: display load average.\n"
         "   \e[1m-m\e[0m: display total / available memory.\n"
         "   \e[1m-M\e[0m: display total / available swap.\n"
+        "   \e[1m-g\e[0m: display gpu name(s).\n"
+        "   \e[1m-u\e[0m: display disk size and usage.\n"
         "   \e[1m-t\e[0m: display uptime.\n"
-        "   \e[1m-d\e[0m: display current epoch timestamp + date.\n\n"
+        "   \e[1m-d\e[0m: display current epoch timestamp + date.\n"
+        "   \e[1m-O\e[0m: display local ips.\n\n"
         "\e[2;3m%s is part of the cutie project hosted under https://github.com/usr-undeleted/cutie licensed under the GPLv3 license.\e[0m\n",
         invocation, invocation, invocation, invocation
     );
     exit(0);
 }
 
-#define FETCH_QUANT 21 // single letters
+#define FETCH_QUANT 23 // single letters
 #define FETCH_FF_QUANT 4 // full flags
 #define FETCH_KEY_LARGEST 21 // largest key, for padding
 int main (int argc, char *argv[]) {
@@ -303,8 +393,10 @@ int main (int argc, char *argv[]) {
         'l',
         'm',
         'M',
+        'g',
         't',
-        'd'
+        'd',
+        'o',
     };
     char *fetchKey[FETCH_QUANT] = {
         "Username: ",
@@ -326,8 +418,10 @@ int main (int argc, char *argv[]) {
         "Load average: ",
         "Total | free memory: ",
         "Total | free swap: ",
+        "GPU(s): ",
         "Uptime: ",
         "Date: ",
+        "Local IPs: ",
     };
 
     // set flags and populate dispatch table
