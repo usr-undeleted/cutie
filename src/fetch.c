@@ -123,7 +123,7 @@ void fetchLang(void) {
     printf("%s", env ? env : "???");
 }
 void fetchPid(void)     { printf("%d", getpid()); }
-void fetchUG(void)      { printf("%d %d", getuid(), getgid());}
+void fetchUG(void)      { printf("%d | %d", getuid(), getgid());}
 void fetchPname(void)   { printf("%s", parseFileValue("/etc/os-release", "PRETTY_NAME=")); }
 void fetchKernel(void)  { printf("%s", unameFetch.release); }
 void fetchArch(void)    { printf("%s", unameFetch.machine); }
@@ -134,6 +134,48 @@ void fetchLavg(void)    { printf("%f %f %f",
     (double)sysinfoFetch.loads[0] / 65536.0,
     (double)sysinfoFetch.loads[1] / 65536.0,
     (double)sysinfoFetch.loads[2] / 65536.0); }
+void fetchMem(void) {
+    if (!siValid) { printf("???"); errorCode = 1; return; }
+    unsigned long total = sysinfoFetch.totalram * sysinfoFetch.mem_unit;
+
+    const char *units[] = {"B", "KiB", "MiB", "GiB", "TiB"};
+    unsigned char tu = 0; // total units
+    unsigned char fu = 1; // free units
+    double t = total;
+
+    // we have to parse a proc file for the actuall free ram
+    char *f = parseProcValue("/proc/meminfo", "MemAvailable");
+    // remove the ' Kb'
+    char *space = strchr(f, ' ');
+    if (space) *space = '\0';
+    // convert to units
+    double rf = atof(f);
+    while (rf >= 1024 && fu < 5) { rf /= 1024; fu++; }
+    while (t >= 1024 && tu < 4)  { t /=  1024; tu++; }
+
+    printf("%.2f %s | %.2f %s", t, units[tu], rf, units[fu]);
+}
+void fetchSwap(void) {
+    if (!siValid) { printf("???"); errorCode = 1; return; }
+    unsigned long total = sysinfoFetch.totalswap * sysinfoFetch.mem_unit;
+
+    const char *units[] = {"B", "KiB", "MiB", "GiB", "TiB"};
+    unsigned char tu = 0; // total units
+    unsigned char fu = 1; // free units
+    double t = total;
+
+    // we have to parse a proc file for the actuall free ram
+    char *f = parseProcValue("/proc/meminfo", "SwapFree");
+    // remove the ' Kb'
+    char *space = strchr(f, ' ');
+    if (space) *space = '\0';
+    // convert to units
+    double rf = atof(f);
+    while (rf >= 1024 && fu < 5) { rf /= 1024; fu++; }
+    while (t >= 1024 && tu < 4)  { t /=  1024; tu++; }
+
+    printf("%.2f %s | %.2f %s", t, units[tu], rf, units[fu]);
+}
 void fetchPsize(void)   { printf("%ld", sysconf(_SC_PAGESIZE)); }
 void fetchUptime(void)  {
     // format total uptime
@@ -182,6 +224,8 @@ fetchFunc dispath[] = {
     fetchPcount,
     fetchPsize,
     fetchLavg,
+    fetchMem,
+    fetchSwap,
     fetchUptime,
     fetchDate
 };
@@ -215,6 +259,8 @@ void helpMenu(char *invocation) {
         "   \e[1m-p\e[0m: display proc count.\n"
         "   \e[1m-P\e[0m: display page size.\n"
         "   \e[1m-l\e[0m: display load average.\n"
+        "   \e[1m-m\e[0m: display total / available memory.\n"
+        "   \e[1m-M\e[0m: display total / available swap.\n"
         "   \e[1m-t\e[0m: display uptime.\n"
         "   \e[1m-d\e[0m: display current epoch timestamp + date.\n\n"
         "\e[2;3m%s is part of the cutie project hosted under https://github.com/usr-undeleted/cutie licensed under the GPLv3 license.\e[0m\n",
@@ -223,9 +269,9 @@ void helpMenu(char *invocation) {
     exit(0);
 }
 
-#define FETCH_QUANT 19 // single letters
+#define FETCH_QUANT 21 // single letters
 #define FETCH_FF_QUANT 4 // full flags
-#define FETCH_KEY_LARGEST 17 // largest key, for padding
+#define FETCH_KEY_LARGEST 21 // largest key, for padding
 int main (int argc, char *argv[]) {
     // eventually loop over this to print
     int dispatchTable[FETCH_QUANT] = { 0 };
@@ -255,6 +301,8 @@ int main (int argc, char *argv[]) {
         'p',
         'P',
         'l',
+        'm',
+        'M',
         't',
         'd'
     };
@@ -267,7 +315,7 @@ int main (int argc, char *argv[]) {
         "Home dir: ",
         "Language: ",
         "PID: ",
-        "UID / GID: ",
+        "UID | GID: ",
         "OS: ",
         "Kernel release: ",
         "Architecture: ",
@@ -276,6 +324,8 @@ int main (int argc, char *argv[]) {
         "Total processes: ",
         "Page size: ",
         "Load average: ",
+        "Total | free memory: ",
+        "Total | free swap: ",
         "Uptime: ",
         "Date: ",
     };
