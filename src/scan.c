@@ -1,12 +1,6 @@
 #include <asm-generic/errno-base.h>
-#include <dirent.h>
-#include <fcntl.h>
-#include <linux/limits.h>
 #include <pwd.h>
 #include <grp.h>
-#include <stdio.h>
-#include <string.h>
-#include <sys/stat.h>
 #include <time.h>
 #include <errno.h>
 #include "cutie-common.h"
@@ -255,6 +249,7 @@ void printDir(DIR *dirStream, char *currentDir, struct winsize *dimensions) {
     size_t dirFileCap = 64;
     size_t dirFileCount = 0;
     size_t largestWordSize = 0;
+    ssize_t shortestWordSize = -1;
     struct dirent *currentFile;
 
     struct entry *entries = malloc(dirFileCap * sizeof(*entries));
@@ -270,6 +265,8 @@ void printDir(DIR *dirStream, char *currentDir, struct winsize *dimensions) {
         if (len > largestWordSize) {
             largestWordSize = len;
         }
+        if (shortestWordSize == -1) shortestWordSize = len; // set the initial length
+        if (shortestWordSize > len) shortestWordSize = len;
 
         // increase the size of the dir's entries
         if (dirFileCount >= dirFileCap) {
@@ -409,7 +406,12 @@ void printDir(DIR *dirStream, char *currentDir, struct winsize *dimensions) {
     }
 
     // get column size
-    for (c = n; c >= 1; c--) {
+    // find the longest name and try the theoretical maximum first
+    int startC = n < (dimensions->ws_col / (shortestWordSize + 2))
+                 ? n
+                 : (dimensions->ws_col / (shortestWordSize + 2));
+
+    for (c = startC; c >= 1; c--) {
         rows = (n + c - 1) / c;
         size_t total = 0;
 
@@ -937,10 +939,12 @@ int main (int argc, char *argv[]) {
                     if (hadFile) printf("\n");
 
                     char bar = useBar ? '/' : '\0';
-                    if (useColor) {
-                        printf("%c\033[34;1m%s%c:\033[0m\n", fullList ? '\n' : '\0', argv[i], bar);
-                    } else {
-                        printf("%s%c:\n", argv[i], bar);
+                    if (!singleDir) {
+                        if (useColor) {
+                            printf("%c\033[34;1m%s%c:\033[0m\n", fullList ? '\n' : '\0', argv[i], bar);
+                        } else {
+                            printf("%s%c:\n", argv[i], bar);
+                        }
                     }
 
                     onlyFail = 0;
