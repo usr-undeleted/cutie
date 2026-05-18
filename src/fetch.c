@@ -1,15 +1,10 @@
 #include "cutie-common.h"
-#include <bits/posix2_lim.h>
-#include <dirent.h>
-#include <fcntl.h>
 #include <netinet/in.h>
 #include <pwd.h>
-#include <string.h>
 #include <sys/socket.h>
 #include <sys/utsname.h>
 #include <sys/sysinfo.h>
 #include <time.h>
-#include <unistd.h>
 #include <ifaddrs.h>
 #include <arpa/inet.h>
 #include <net/if.h>
