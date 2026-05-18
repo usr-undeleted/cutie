@@ -132,6 +132,7 @@ void fetchLang(void) {
 }
 void fetchPid(void)     { printf("%d", getpid()); }
 void fetchUG(void)      { printf("%d | %d", getuid(), getgid());}
+void fetchOtype(void)   { printf("%s", unameFetch.sysname ); }
 void fetchPname(void)   { printf("%s", parseFileValue("/etc/os-release", "PRETTY_NAME=")); }
 void fetchKernel(void)  { printf("%s", unameFetch.release); }
 void fetchArch(void)    { printf("%s", unameFetch.machine); }
@@ -387,6 +388,7 @@ fetchFunc dispath[] = {
     fetchLang,
     fetchPid,
     fetchUG,
+    fetchOtype,
     fetchPname,
     fetchKernel,
     fetchArch,
@@ -424,6 +426,7 @@ void helpMenu(char *invocation) {
         "   \e[1m-L\e[0m: display user's language.\n"
         "   \e[1m-i\e[0m: display current process' PID.\n"
         "   \e[1m-I\e[0m: display user's UID and GID.\n"
+        "   \e[1m-x\e[0m: display OS type.\n"
         "   \e[1m-o\e[0m: display OS pretty name.\n"
         "   \e[1m-k\e[0m: display kernel release name.\n"
         "   \e[1m-a\e[0m: display cpu architecture.\n"
@@ -444,7 +447,7 @@ void helpMenu(char *invocation) {
     exit(0);
 }
 
-#define FETCH_QUANT 23 // single letters
+#define FETCH_QUANT 24 // single letters
 #define FETCH_FF_QUANT 4 // full flags
 #define FETCH_KEY_LARGEST 21 // largest key, for padding
 int main (int argc, char *argv[]) {
@@ -468,6 +471,7 @@ int main (int argc, char *argv[]) {
         'L',
         'i',
         'I',
+        'x',
         'o',
         'k',
         'a',
@@ -493,6 +497,7 @@ int main (int argc, char *argv[]) {
         "Language: ",
         "PID: ",
         "UID | GID: ",
+        "OS type: ",
         "OS: ",
         "Kernel release: ",
         "Architecture: ",
