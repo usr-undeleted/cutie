@@ -219,10 +219,10 @@ void fetchGpu(void) {
         unsigned long vendor = strtoul(line, &endptr, 16);
         if (line == endptr) continue;
         switch (vendor) {
-            case 0x10de: printf("(%s) nvidia ", entry->d_name); break;
-            case 0x1002: printf("(%s) amd ",    entry->d_name); break;
-            case 0x8086: printf("(%s) intel ",  entry->d_name); break;
-            default: continue; break;
+            case 0x10de: printf("(%s) Nvidia ", entry->d_name); break;
+            case 0x1002: printf("(%s) AMD ",    entry->d_name); break;
+            case 0x8086: printf("(%s) Intel ",  entry->d_name); break;
+            default:     printf("(%s) ???",     entry->d_name); errorCode = 1; break;
         }
 
         fclose(file);
