@@ -4,6 +4,7 @@
 #include <fcntl.h>
 #include <netinet/in.h>
 #include <pwd.h>
+#include <string.h>
 #include <sys/socket.h>
 #include <sys/utsname.h>
 #include <sys/sysinfo.h>
@@ -137,7 +138,7 @@ void fetchArch(void)    { printf("%s", unameFetch.machine); }
 void fetchCname(void)   { printf("%s", parseProcValue("/proc/cpuinfo", "model name")); }
 void fetchCcount(void)  { printf("%ld", sysconf(_SC_NPROCESSORS_ONLN)); }
 void fetchPcount(void)  { printf("%d", sysinfoFetch.procs); }
-void fetchLavg(void)    { printf("%f %f %f",
+void fetchLavg(void)    { printf("%.2f %.2f %.2f",
     (double)sysinfoFetch.loads[0] / 65536.0,
     (double)sysinfoFetch.loads[1] / 65536.0,
     (double)sysinfoFetch.loads[2] / 65536.0); }
@@ -203,10 +204,13 @@ void fetchGpu(void) {
 
         // find name of vendor by reading the symlink's target
         FILE *file = fopen(path, "r");
-        if (!file) continue;
+        if (!file) {
+            errorCode = 1;
+            continue;
+        };
 
         // open line and find hex code, and remove '\n'
-        char line[32] = { 0 };
+        char line[8] = { 0 };
         char *point = fgets(line, sizeof(line), file);
         unsigned short end = 0;
         while (*point++ != '\n') {
@@ -219,10 +223,92 @@ void fetchGpu(void) {
         unsigned long vendor = strtoul(line, &endptr, 16);
         if (line == endptr) continue;
         switch (vendor) {
-            case 0x10de: printf("(%s) Nvidia ", entry->d_name); break;
-            case 0x1002: printf("(%s) AMD ",    entry->d_name); break;
-            case 0x8086: printf("(%s) Intel ",  entry->d_name); break;
-            default:     printf("(%s) ???",     entry->d_name); errorCode = 1; break;
+            // how come nvidia is the easiest to get??
+            case 0x10de: {
+                // strip /vendor from path
+                char *devEnd = strrchr(path, '/');
+                *devEnd = '\0';
+
+                char link[256];
+                ssize_t len = readlink(path, link, sizeof(link) - 1);
+                link[len] = '\0';
+
+                // bus id contains the info we need
+                char *busId = strrchr(link, '/');
+                busId++;
+                // file we can parse
+                char infoPath[256];
+                snprintf(infoPath, sizeof(infoPath), "/proc/driver/nvidia/gpus/%s/information", busId);
+
+                printf("(%s) %s", entry->d_name, parseProcValue(infoPath, "Model"));
+                break;
+            }
+            // both amd and intel show hex strings, and we might have to sometime
+            // get a table of hex strings and their gpus so we can show the right
+            // device name. we read /sys/class/drm/cardN/device/device
+            case 0x1002: {
+                // we have .../vendor, we need .../device
+                char *devEnd = strrchr(path, '/');
+                *devEnd = '\0';
+                char devPath[256];
+                snprintf(devPath, sizeof(devPath), "%s/%s", path, "device");
+                FILE *gpuFile = fopen(devPath, "r");
+                if (!gpuFile) {
+                    printf("(%s) AMD ???", entry->d_name);
+                    errorCode = 1;
+                    break;
+                }
+
+                // open line and find hex code, and remove '\n'
+                char line[8] = { 0 };
+                char *point = fgets(line, sizeof(line), gpuFile);
+                if (point == NULL) {
+                    printf("(%s) AMD ???", entry->d_name);
+                    errorCode = 1;
+                    break;
+                }
+
+                unsigned short end = 0;
+                while (*point++ != '\n') {
+                    end++;
+                }
+                line[end++] = '\0';
+
+                printf("(%s) AMD %s", entry->d_name, line);
+                break;
+            }
+            case 0x8086: {
+                // we have .../vendor, we need .../device
+                char *devEnd = strrchr(path, '/');
+                *devEnd = '\0';
+                char devPath[256];
+                snprintf(devPath, sizeof(devPath), "%s/%s", path, "device");
+                FILE *gpuFile = fopen(devPath, "r");
+                if (!gpuFile) {
+                    printf("(%s) Intel ???", entry->d_name);
+                    errorCode = 1;
+                    break;
+                }
+
+                // open line and find hex code, and remove '\n'
+                char line[8] = { 0 };
+                char *point = fgets(line, sizeof(line), gpuFile);
+                if (point == NULL) {
+                    printf("(%s) Intel ???", entry->d_name);
+                    errorCode = 1;
+                    break;
+                }
+
+                unsigned short end = 0;
+                while (*point++ != '\n') {
+                    end++;
+                }
+                line[end++] = '\0';
+
+                printf("(%s) Intel %s",    entry->d_name, line);
+                break;
+            }
+            default: printf("(%s) ??? ???", entry->d_name); errorCode = 1; break;
         }
 
         fclose(file);
