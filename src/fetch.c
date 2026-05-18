@@ -349,7 +349,6 @@ void helpMenu(char *invocation) {
         "   \e[1m-m\e[0m: display total / available memory.\n"
         "   \e[1m-M\e[0m: display total / available swap.\n"
         "   \e[1m-g\e[0m: display gpu name(s).\n"
-        "   \e[1m-u\e[0m: display disk size and usage.\n"
         "   \e[1m-t\e[0m: display uptime.\n"
         "   \e[1m-d\e[0m: display current epoch timestamp + date.\n"
         "   \e[1m-O\e[0m: display local ips.\n\n"
