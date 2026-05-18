@@ -457,7 +457,7 @@ int main (int argc, char *argv[]) {
             }
         }
 
-        if (!fflagMatch) {
+        if (!fflagMatch && argv[i][1] == '-') {
             fprintf(stderr, "Invalid flag given. See '%s --help' for instructions.\n", argv[0]);
             return 2;
         } else if (argv[i][1] == '-') continue;
