@@ -154,14 +154,18 @@ int main (int argc, char *argv[]) {
     }
 
     // use dump() to print
+    unsigned char hadProc = 0;
     for (int i = 1; i < argc; i++) {
         // handle flags
         if (argv[i][0] == '-' && argv[i][1] != '\0') continue;
 
         if (argv[i][0] == '-' && argv[i][1] == '\0' && processStdin) {
+            hadProc = 1;
             returned = dump(stdin);
             continue;
         }
+
+        hadProc = 1;
 
         int fd = open(argv[i], O_RDONLY);
         if (fd == -1) {
@@ -191,6 +195,11 @@ int main (int argc, char *argv[]) {
         fileDescriptor = fdopen(fd, "r");
         returned = dump(fileDescriptor);
         fclose(fileDescriptor);
+    }
+
+    if (!hadProc) {
+        fprintf(stderr, "No files provided. See '%s -h' or '%s --help' for instructions.\n", argv[0], argv[0]);
+        return 2;
     }
 
     return returned;
